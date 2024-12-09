@@ -17,7 +17,7 @@ interface CallFrame {
   pc: number
 }
 
-interface ParlVMState {
+export interface ParlVMState {
   screenHandle: HTMLCanvasElement
   loggerHandle: HTMLTextAreaElement
   frameStack: Array<Frame>
@@ -31,11 +31,11 @@ interface ParlVMState {
 }
 
 export class ParlVM {
-  private state: ParlVMState
-  private program: Program
-
-  constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
-    this.state = {
+  protected static initState(
+    screenHandle: HTMLCanvasElement,
+    loggerHandle: HTMLTextAreaElement
+  ): ParlVMState {
+    return {
       screenHandle,
       loggerHandle,
       frameStack: [[]],
@@ -46,6 +46,22 @@ export class ParlVM {
       halted: true,
       paused: false
     }
+  }
+
+  protected program: Program
+
+  // While this may look like a weird way to represent state,
+  // it allows us to override getters and setters for this.state in subclasses.
+  private _state: ParlVMState
+  protected get state(): ParlVMState {
+    return this._state
+  }
+  protected set state(v: ParlVMState) {
+    this._state = v
+  }
+
+  constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
+    this._state = ParlVM.initState(screenHandle, loggerHandle)
     // initialize program to the program that does nothing and halts immediately.
     this.program = new Map([['.main', [{ opcode: PixIROpcode.HALT, operand: undefined }]]])
   }
@@ -111,7 +127,8 @@ export class ParlVM {
 
       const instr = func[pc]
       switch (instr.opcode) {
-        // mathematical operations
+        /// Mathematical operations
+        /// ------------------------------------------------------
         case PixIROpcode.ADD: {
           const x = this.safePop()
           const y = this.safePop()
@@ -297,7 +314,9 @@ export class ParlVM {
           break
         }
 
-        // logical operations
+        /// Logical operations
+        /// ------------------------------------------------------
+
         case PixIROpcode.NOT: {
           const x = this.safePop()
 
@@ -413,7 +432,9 @@ export class ParlVM {
           break
         }
 
-        // stack and control operations
+        /// Stack and Control flow operations
+        /// ------------------------------------------------------
+
         case PixIROpcode.DUP: {
           const x = this.safePop()
 
@@ -436,6 +457,19 @@ export class ParlVM {
         case PixIROpcode.PUSH: {
           if (instr.operand?.dtype == PixIRDataType.LABEL) {
             const [offset, frame] = instr.operand?.val as Label
+            const data = this.state.frameStack[frame][offset]
+            if (data == undefined) {
+              throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
+            }
+            this.state.workStack.push(data)
+          } else if (instr.operand?.dtype == PixIRDataType.LABEL_W_OFFSET) {
+            let [offset, frame] = instr.operand?.val as Label
+            const index = this.safePop()
+
+            checkDataType(index, [PixIRDataType.NUMBER])
+
+            // add index we obtained from the work stack.
+            offset += index.val as number
             const data = this.state.frameStack[frame][offset]
             if (data == undefined) {
               throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
@@ -563,14 +597,27 @@ export class ParlVM {
         }
 
         case PixIROpcode.ST: {
-          const frame = this.safePop()
-          const location = this.safePop()
+          const frame_ = this.safePop()
+          const location_ = this.safePop()
           const val = this.safePop()
 
-          checkDataType(location, [PixIRDataType.NUMBER])
-          checkDataType(frame, [PixIRDataType.NUMBER])
+          checkDataType(location_, [PixIRDataType.NUMBER])
+          checkDataType(frame_, [PixIRDataType.NUMBER])
 
-          this.state.frameStack[frame.val as number][location.val as number] = val
+          const frame = frame_.val as number
+          const location = location_.val as number
+
+          if (frame >= this.state.frameStack.length || frame < 0)
+            throw RangeError(
+              `Access to out of bounds frame ${frame}, valid range is [0, ${this.state.frameStack.length - 1}]`
+            )
+
+          if (location >= this.state.frameStack[frame].length || location < 0)
+            throw RangeError(
+              `Access to out of bounds location ${location}, valid range is [0, ${this.state.frameStack[frame].length - 1}]`
+            )
+
+          this.state.frameStack[frame][location] = val
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
@@ -592,7 +639,9 @@ export class ParlVM {
           break
         }
 
-        // screen related operations
+        /// Screen related operations
+        /// ------------------------------------------------------
+
         case PixIROpcode.WRITE: {
           const x = this.safePop()
           const y = this.safePop()
@@ -701,72 +750,122 @@ export class ParlVM {
           break
         }
 
-        // array operations
-        case PixIROpcode.ALLOCA: {
-          const size = this.safePop()
+        /// Array operations
+        /// ------------------------------------------------------
 
-          checkDataType(size, [PixIRDataType.NUMBER])
+        case PixIROpcode.DUPA: {
+          const x = this.safePop()
+          const count = this.safePop()
 
-          if ((size.val as number) < 0)
-            throw RangeError(`Cannot allocate array with negative size ${dataToString(size)}`)
+          checkDataType(count, [PixIRDataType.NUMBER])
 
-          let arr = []
-          for (let i = 0; i < (size.val as number); i++) arr.push(undefined)
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.ARRAY,
-            val: arr
-          })
+          for (let i: number = 0; i < (count.val as number); i++) {
+            this.state.workStack.push(x)
+          }
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
         }
 
         case PixIROpcode.STA: {
-          let arr = this.safePop()
-          const idx = this.safePop()
-          const val = this.safePop()
+          const frame_ = this.safePop()
+          const location_ = this.safePop()
+          const count_ = this.safePop()
 
-          checkDataType(arr, [PixIRDataType.ARRAY])
-          checkDataType(idx, [PixIRDataType.NUMBER])
+          checkDataType(frame_, [PixIRDataType.NUMBER])
+          checkDataType(location_, [PixIRDataType.NUMBER])
+          checkDataType(count_, [PixIRDataType.NUMBER])
 
-          // array bounds checking
-          const arrsize = (arr.val as Array<any>).length
-          if ((idx.val as number) < 0 || (idx.val as number) >= arrsize)
+          const frame = frame_.val as number
+          const location = location_.val as number
+          const count = count_.val as number
+
+          if (frame >= this.state.frameStack.length || frame < 0)
             throw RangeError(
-              `Out of bounds access ${dataToString(idx)} to array ${dataToString(arr)} of size ${arrsize}.`
+              `Access to out of bounds frame ${frame}, valid range is [0, ${this.state.frameStack.length - 1}]`
             )
-          ;(arr.val as Array<any>)[idx.val as number] = val
+
+          if (location + count - 1 >= this.state.frameStack[frame].length || location < 0)
+            throw RangeError(
+              `Access to out of bounds location range [${location}, ${location + count - 1}], valid range is [0, ${this.state.frameStack[frame].length - 1}]`
+            )
+
+          for (let i = 0; i < count; i++)
+            this.state.frameStack[frame][location + i] = this.safePop()
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
         }
 
-        case PixIROpcode.LDA: {
-          let arr = this.safePop()
-          const idx = this.safePop()
+        case PixIROpcode.PUSHA: {
+          const count_ = this.safePop()
 
-          checkDataType(arr, [PixIRDataType.ARRAY])
-          checkDataType(idx, [PixIRDataType.NUMBER])
+          checkDataType(count_, [PixIRDataType.NUMBER])
 
-          // array bounds checking
-          const arrsize = (arr.val as Array<any>).length
-          if ((idx.val as number) < 0 || (idx.val as number) >= arrsize)
-            throw RangeError(
-              `Out of bounds access ${dataToString(idx)} to array ${dataToString(arr)} of size ${arrsize}.`
+          const count = count_.val as number
+
+          if (instr.operand?.dtype == PixIRDataType.LABEL) {
+            const [location, frame] = instr.operand?.val as Label
+
+            if (frame >= this.state.frameStack.length || frame < 0)
+              throw RangeError(
+                `Access to out of bounds frame ${frame}, valid range is [0, ${this.state.frameStack.length - 1}]`
+              )
+
+            if (location + count - 1 >= this.state.frameStack[frame].length || location < 0)
+              throw RangeError(
+                `Access to out of bounds location range [${location}, ${location + count - 1}], valid range is [0, ${this.state.frameStack[frame].length - 1}]`
+              )
+
+            for (let i: number = 0; i < count; i++) {
+              this.state.workStack.push(this.state.frameStack[frame][location + i]!)
+            }
+          } else {
+            throw Error(
+              `Invalid operand to pusha instruction ${instr.operand}, should be memory location.`
             )
-
-          const val = (arr.val as Array<any>)[idx.val as number]
-          if (val === undefined)
-            throw ReferenceError(
-              `Loaded undefined element from location ${dataToString(idx)} of array ${dataToString(arr)}.`
-            )
-
-          this.state.workStack.push(val)
+          }
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
         }
+
+        case PixIROpcode.PRINTA: {
+          const count_ = this.safePop()
+
+          checkDataType(count_, [PixIRDataType.NUMBER])
+
+          const count = count_.val as number
+
+          for (let i: number = 0; i < count; i++) {
+            this.state.loggerHandle.value += `${dataToString(this.safePop())}\n`
+          }
+
+          this.state.callStack[this.state.callStack.length - 1].pc++
+          break
+        }
+
+        case PixIROpcode.RETA: {
+          const count_ = this.safePop()
+
+          checkDataType(count_, [PixIRDataType.NUMBER])
+
+          const count = count_.val as number
+
+          let buf: PixIRData[] = []
+          for (let i: number = 0; i < count; i++) {
+            buf.push(this.safePop())
+          }
+          for (let i: number = 0; i < count; i++) {
+            this.state.workStack.push(buf.shift()!)
+          }
+
+          this.state.callStack[this.state.callStack.length - 1].pc++
+          break
+        }
+
+        /// Low level I/O
+        /// ------------------------------------------------------
 
         case PixIROpcode.GETCHAR: {
           // https://stackoverflow.com/questions/44746592/is-there-a-way-to-write-async-await-code-that-responds-to-onkeypress-events
@@ -775,7 +874,7 @@ export class ParlVM {
             // loop until we get a non-nul character
 
             // timer for invocations of readKey()
-            let timer: number = 0
+            let timer: NodeJS.Timeout
 
             const readKey = () =>
               new Promise((resolve, reject) => {
@@ -794,7 +893,7 @@ export class ParlVM {
                 // if timeout expires, we catch the promise rejection.
               }
               // clear timeout
-              clearTimeout(timer)
+              clearTimeout(timer!)
 
               // if the VM was halted or paused while we were waiting, we return
               // Note that we do NOT advance the PC in case the VM was paused,

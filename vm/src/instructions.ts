@@ -51,9 +51,11 @@ export enum PixIROpcode {
   // log output
   PRINT = 'print',
   // array operations
-  ALLOCA = 'alloca',
+  DUPA = 'dupa',
   STA = 'sta',
-  LDA = 'lda',
+  PUSHA = 'pusha',
+  PRINTA = 'printa',
+  RETA = 'reta',
   // low level I/O operations
   GETCHAR = 'getchar',
   PUTCHAR = 'putchar'
@@ -63,6 +65,7 @@ export enum PixIROpcode {
 export enum PixIRDataType {
   NUMBER = 'number',
   LABEL = 'label',
+  LABEL_W_OFFSET = 'label_w_offset',
   // relative offset from PC.
   PCOFFSET = 'pcoffset',
   // function address
@@ -88,9 +91,14 @@ export function dataToString(d: PixIRData): string {
   switch (d.dtype) {
     case PixIRDataType.NUMBER:
       return (d.val as number).toString()
-    case PixIRDataType.LABEL:
+    case PixIRDataType.LABEL: {
       const [offset, frame] = d.val as Label
       return `[${offset}:${frame}]`
+    }
+    case PixIRDataType.LABEL_W_OFFSET: {
+      const [offset, frame] = d.val as Label
+      return `+[${offset}:${frame}]`
+    }
     case PixIRDataType.PCOFFSET:
       return `#PC+${d.val as number}`
     case PixIRDataType.FUNCTION:
@@ -174,6 +182,16 @@ function readOperand(opStr: string): PixIRData {
     validateFunctionName(opStr)
     return { dtype: PixIRDataType.FUNCTION, val: opStr }
   }
+  // try checking if operand is a label w/ offset
+  if (opStr.substring(0, 2) == '+[' && opStr[opStr.length - 1] == ']') {
+    const label = opStr.substring(2, opStr.length - 1)
+    const splitLabel = label.split(':', 2)
+    const offset = parseInt(splitLabel[0])
+    let frame = 0
+    if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
+    if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
+    return { dtype: PixIRDataType.LABEL_W_OFFSET, val: [offset, frame] }
+  }
 
   // try checking if operand is a label
   if (opStr[0] == '[' && opStr[opStr.length - 1] == ']') {
@@ -214,11 +232,26 @@ export function readInstr(line: string): PixIRInstruction {
 
   // get opcode operand if the opcode is a push instruction
   let operand = undefined
-  if (opcode == PixIROpcode.PUSH) {
+  if (opcode === PixIROpcode.PUSH) {
     if (splitInstr.length == 1) throw SyntaxError('Operand for push instruction was not specified.')
     if (splitInstr.length != 2)
       throw SyntaxError('Extra operands specified for push instruction; can only specify one.')
     operand = readOperand(splitInstr[1])
+  } else if (opcode === PixIROpcode.PUSHA) {
+    const opStr = splitInstr[1]
+    // parse memory label; code repeated from readOperand()
+    if (opStr[0] == '[' && opStr[opStr.length - 1] == ']') {
+      const label = opStr.substring(1, opStr.length - 1)
+      const splitLabel = label.split(':', 2)
+      const offset = parseInt(splitLabel[0])
+      let frame = 0
+      if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
+      if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
+      operand = { dtype: PixIRDataType.LABEL, val: [offset, frame] } as PixIRData
+    }
+    throw SyntaxError(
+      `Invalid operand given to pusha instruction ${opStr}; operand should be memory location in form [offset:frame].`
+    )
   }
 
   return { opcode, operand }

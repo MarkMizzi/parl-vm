@@ -76,9 +76,11 @@ Data {
     "width" | "WIDTH" |
     "height" | "HEIGHT" |
     "print" | "PRINT" |
-    "alloca" | "ALLOCA" |
+    "dupa" | "DUPA" |
     "sta" | "STA" |
-    "lda" | "LDA" |
+    "pusha" | "PUSHA" |
+    "printa" | "PRINTA" |
+    "reta" | "RETA" |
     "putchar" | "PUTCHAR" |
     "getchar" | "GETCHAR"
   }
@@ -87,5 +89,5 @@ Data {
   PCOffset { "#PC" $[+-] Number }
   FunctionLabel { "." Identifier }
   Colour { '#' $[0-9a-fA-F]+ }
-  Label { "[" $[0-9]+ (":" $[0-9]+)? "]" }
+  Label { "+"? "[" $[0-9]+ (":" $[0-9]+)? "]" }
 }
