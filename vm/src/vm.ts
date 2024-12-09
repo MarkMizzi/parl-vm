@@ -872,7 +872,7 @@ export class ParlVM {
             // loop until we get a non-nul character
 
             // timer for invocations of readKey()
-            let timer: NodeJS.Timeout
+            let timer
 
             const readKey = () =>
               new Promise((resolve, reject) => {

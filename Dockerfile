@@ -20,6 +20,7 @@ WORKDIR /playground
 # Install deps and build playground app
 RUN npm install
 RUN npm run build
+RUN npm prune --production
 
 # Clean up typescript files as these are not needed in build.
 WORKDIR /
@@ -31,4 +32,4 @@ RUN apt-get autoremove -y
 
 # Command to run the playground app, appropriate port is also exposed.
 WORKDIR /playground
-CMD ["http-server", "./dist"]
+CMD ["./node_modules/http-server/bin/http-server", "./dist"]

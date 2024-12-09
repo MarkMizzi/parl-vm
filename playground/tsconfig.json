@@ -7,9 +7,5 @@
     {
       "path": "./tsconfig.app.json"
     },
-    {
-      // config for web server
-      "path": "./tsconfig.server.json"
-    }
   ]
 }

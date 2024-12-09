@@ -15,10 +15,10 @@
   "dependencies": {
     "@codemirror/lang-xml": "^6.1.0",
     "codemirror": "^5.65.18",
-    "pinia": "^2.1.7",
+    "http-server": "^14.1.1",
     "parl-highlighting": "file:../highlighting",
     "parl-vm": "file:../vm",
-    "tmp": "^0.2.3",
+    "pinia": "^2.1.7",
     "vue": "^3.4.29",
     "vue-codemirror": "^5.1.0",
     "vue-router": "^4.3.3",
