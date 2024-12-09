@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, useTemplateRef, defineExpose, ref } from 'vue'
-import { type Program, Assembler, ParlVM } from 'parl-vm'
+import { onMounted, useTemplateRef, defineExpose, ref, type Ref } from 'vue'
+import { type Program, Assembler, ParlVM, type ParlVMState } from 'parl-vm'
 import $toast from '@/toast'
 
 export interface ParlVMViewData {
@@ -9,11 +9,26 @@ export interface ParlVMViewData {
   vm: ParlVM | undefined
 }
 
+class ParlVMWithDebugger extends ParlVM {
+  private stateRef: Ref<ParlVMState>
+  protected get state(): ParlVMState {
+    return this.stateRef.value
+  }
+  protected set state(v: ParlVMState) {
+    this.stateRef.value = v
+  }
+
+  constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
+    super(screenHandle, loggerHandle)
+    this.stateRef = ref(ParlVM.initState(screenHandle, loggerHandle))
+  }
+}
+
 let assembler = new Assembler()
 let vm: ParlVM | undefined = undefined
 
-const screenRef = useTemplateRef('pixel-vm-screen')
-const loggerRef = useTemplateRef('pixel-vm-logger')
+const screenRef = useTemplateRef('parl-vm-screen')
+const loggerRef = useTemplateRef('parl-vm-logger')
 
 // is the VM executing instructions rn?
 // No if machine has halted, not been started or is paused.
@@ -183,14 +198,14 @@ defineExpose({
           </form>
         </div>
         <canvas
-          ref="pixel-vm-screen"
+          ref="parl-vm-screen"
           class="relative w-full overflow-auto border-2 content-center border-slate-900"
           width="800"
           height="800"
         >
         </canvas>
         <textarea
-          ref="pixel-vm-logger"
+          ref="parl-vm-logger"
           placeholder="Logs will be printed here..."
           class="w-full h-96 overflow-y-scroll border-0 bg-slate-900 text-slate-100 resize-none"
           readonly

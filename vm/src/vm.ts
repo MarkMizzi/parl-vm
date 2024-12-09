@@ -1,5 +1,4 @@
 import {
-  type FunctionName,
   type PixIRData,
   type Label,
   PixIROpcode,
@@ -12,18 +11,14 @@ import { type Program } from './assembler'
 
 type Frame = Array<PixIRData | undefined>
 
-interface CallFrame {
-  funcName: FunctionName
-  pc: number
-}
-
 export interface ParlVMState {
   screenHandle: HTMLCanvasElement
   loggerHandle: HTMLTextAreaElement
   frameStack: Array<Frame>
   workStack: Array<PixIRData>
-  // track function calls and return pointers.
-  callStack: Array<CallFrame>
+  programCounter: number
+  // store return pointers
+  retStack: Array<number>
   height: number
   width: number
   halted: boolean
@@ -40,7 +35,8 @@ export class ParlVM {
       loggerHandle,
       frameStack: [[]],
       workStack: [],
-      callStack: [{ funcName: '.main', pc: 0 }],
+      programCounter: 0,
+      retStack: [],
       height: 100,
       width: 100,
       halted: true,
@@ -63,7 +59,10 @@ export class ParlVM {
   constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
     this._state = ParlVM.initState(screenHandle, loggerHandle)
     // initialize program to the program that does nothing and halts immediately.
-    this.program = new Map([['.main', [{ opcode: PixIROpcode.HALT, operand: undefined }]]])
+    this.program = {
+      instrs: [{ opcode: PixIROpcode.HALT, operand: undefined }],
+      funcs: new Map([['.main', 0]])
+    }
   }
 
   /* Pop safely from the work stack. */
@@ -104,28 +103,27 @@ export class ParlVM {
   public reset() {
     this.state.frameStack = [[]]
     this.state.workStack = []
-    this.state.callStack = [{ funcName: '.main', pc: 0 }]
+    this.state.programCounter = 0
     this.state.paused = false
   }
 
   private async step() {
     if (this.state.halted) throw Error('Trying to execute step in halted VM.')
 
-    const { funcName, pc } = this.state.callStack[this.state.callStack.length - 1]
-    const func = this.program.get(funcName)
-    if (func === undefined) throw ReferenceError('Function at the top of the stack was not found.')
+    const pc = this.state.programCounter
 
     try {
       if (pc < 0)
         throw RangeError(
           `Program counter ${pc} is out of bounds (< 0), program jumped too far back.`
         )
-      if (pc >= func.length)
+      if (pc >= this.program.instrs.length)
         throw RangeError(
-          `Program counter ${pc} is larger than biggest possible value in this function ${func.length - 1}. Program jumped too far or function did not return before the last instruction in the function body was reached.`
+          `Program counter ${pc} is larger than biggest possible value ${this.program.instrs.length - 1}.`
         )
 
-      const instr = func[pc]
+      const instr = this.program.instrs[pc]
+
       switch (instr.opcode) {
         /// Mathematical operations
         /// ------------------------------------------------------
@@ -142,7 +140,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -159,7 +157,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -175,7 +173,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -192,7 +190,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -209,7 +207,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -224,7 +222,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -239,7 +237,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -257,7 +255,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -275,7 +273,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -290,7 +288,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -310,7 +308,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -328,7 +326,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -345,7 +343,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -362,7 +360,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -378,7 +376,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -394,7 +392,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -411,7 +409,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -428,7 +426,7 @@ export class ParlVM {
           })
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -442,7 +440,7 @@ export class ParlVM {
           this.state.workStack.push(x)
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -450,7 +448,7 @@ export class ParlVM {
           this.safePop()
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -480,20 +478,20 @@ export class ParlVM {
             // push ptr to instruction to work stack, as when we use the pc offset, pc will have changed.
             this.state.workStack.push({
               dtype: PixIRDataType.NUMBER,
-              val: this.state.callStack[this.state.callStack.length - 1].pc + pcoffset
+              val: pc + pcoffset
             })
           } else {
             this.state.workStack.push(instr.operand as PixIRData)
           }
 
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
         case PixIROpcode.NOP: {
           // update pc
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -501,7 +499,7 @@ export class ParlVM {
           const x = this.safePop()
 
           checkDataType(x, [PixIRDataType.NUMBER])
-          this.state.callStack[this.state.callStack.length - 1].pc = x.val as number
+          this.state.programCounter = x.val as number
           break
         }
 
@@ -513,9 +511,8 @@ export class ParlVM {
           checkDataType(cond, [PixIRDataType.NUMBER])
 
           // update pc
-          if ((cond.val as number) != 0)
-            this.state.callStack[this.state.callStack.length - 1].pc = instrptr.val as number
-          else this.state.callStack[this.state.callStack.length - 1].pc++
+          if ((cond.val as number) != 0) this.state.programCounter = instrptr.val as number
+          else this.state.programCounter++
           break
         }
 
@@ -527,9 +524,8 @@ export class ParlVM {
           checkDataType(cond, [PixIRDataType.NUMBER])
 
           // update pc
-          if ((cond.val as number) == 0)
-            this.state.callStack[this.state.callStack.length - 1].pc = instrptr.val as number
-          else this.state.callStack[this.state.callStack.length - 1].pc++
+          if ((cond.val as number) == 0) this.state.programCounter = instrptr.val as number
+          else this.state.programCounter++
           break
         }
 
@@ -544,17 +540,19 @@ export class ParlVM {
           for (let i = 0; i < (argCount.val as number); i++) frame.push(this.safePop())
 
           this.state.frameStack.unshift(frame)
-          this.state.callStack.push({
-            funcName: funcName.val as FunctionName,
-            pc: 0
-          })
+          this.state.retStack.push(this.state.programCounter + 1)
+
+          if (!this.program.funcs.has(funcName.val as string))
+            throw Error(`Tried calling function ${funcName} which does not exist.`)
+
+          this.state.programCounter = this.program.funcs.get(funcName.val as string)!
           break
         }
 
         case PixIROpcode.RET: {
-          this.state.frameStack.shift()
-          this.state.callStack.pop()
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          if (this.state.retStack.length === 0)
+            throw RangeError(`Tried popping return pointer from stack when it was empty.`)
+          this.state.programCounter = this.state.retStack.pop()!
           break
         }
 
@@ -571,7 +569,7 @@ export class ParlVM {
 
           for (let i = 0; i < (size.val as number); i++) this.state.frameStack[0].push(undefined)
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -585,14 +583,14 @@ export class ParlVM {
 
           this.state.frameStack.unshift(frame)
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
         case PixIROpcode.CFRAME: {
           this.state.frameStack.shift()
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -619,7 +617,7 @@ export class ParlVM {
 
           this.state.frameStack[frame][location] = val
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -635,7 +633,7 @@ export class ParlVM {
 
           await sleep(delay.val as number)
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -653,7 +651,7 @@ export class ParlVM {
 
           this.fillRect(x.val as number, y.val as number, 1, 1, c.val as number)
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -678,7 +676,7 @@ export class ParlVM {
             c.val as number
           )
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -689,7 +687,7 @@ export class ParlVM {
 
           this.fillRect(0, 0, this.state.width, this.state.height, c.val as number)
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -717,7 +715,7 @@ export class ParlVM {
             val: (imageData[0] << 16) | (imageData[1] << 8) | imageData[2]
           })
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -727,7 +725,7 @@ export class ParlVM {
             val: this.state.width
           })
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -737,7 +735,7 @@ export class ParlVM {
             val: this.state.height
           })
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -746,7 +744,7 @@ export class ParlVM {
           const x = this.safePop()
           this.state.loggerHandle.value += `${dataToString(x)}\n`
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -763,7 +761,7 @@ export class ParlVM {
             this.state.workStack.push(x)
           }
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -793,7 +791,7 @@ export class ParlVM {
           for (let i = 0; i < count; i++)
             this.state.frameStack[frame][location + i] = this.safePop()
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -826,7 +824,7 @@ export class ParlVM {
             )
           }
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -841,7 +839,7 @@ export class ParlVM {
             this.state.loggerHandle.value += `${dataToString(this.safePop())}\n`
           }
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -860,7 +858,7 @@ export class ParlVM {
             this.state.workStack.push(buf.shift()!)
           }
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -923,7 +921,7 @@ export class ParlVM {
 
           this.state.workStack.push({ dtype: PixIRDataType.NUMBER, val })
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
 
@@ -935,7 +933,7 @@ export class ParlVM {
           const charCode = Math.round(x.val as number)
           this.state.loggerHandle.value += `${String.fromCharCode(charCode)}`
 
-          this.state.callStack[this.state.callStack.length - 1].pc++
+          this.state.programCounter++
           break
         }
       }
@@ -992,11 +990,11 @@ export class ParlVM {
     this.state.paused = false
     // as soon as stack size dips lower than initial size (or the machine halts)
     // we have stepped out of the function.
-    const currCallStackSize = this.state.callStack.length
+    const currCallStackSize = this.state.retStack.length
     while (
       !this.state.halted &&
       !this.state.paused &&
-      this.state.callStack.length >= currCallStackSize
+      this.state.retStack.length >= currCallStackSize
     ) {
       await this.step()
     }
