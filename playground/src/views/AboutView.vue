@@ -334,8 +334,8 @@
           <td><span class="code">..</span></td>
           <td><span class="code">x ..</span></td>
           <td>
-            Only opcode that takes an argument. The argument is pushed onto the stack. Arguments can
-            be:
+            One of just two opcodes that takes an argument. The argument is pushed onto the stack.
+            Arguments can be:
             <ul>
               <li>IEEE754 floating point numbers.</li>
               <li>A colour (encoded as a hex string, e.g. <span class="code">#7f5612</span>).</li>
@@ -359,6 +359,16 @@
                 top frame.
               </li>
             </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="code">push +[i:f]</span></td>
+          <td><span class="code">o ..</span></td>
+          <td><span class="code">x ..</span></td>
+          <td>
+            Pops a number <span class="code">o</span> from the work stack and pushes the value at
+            the <span class="code">i + o</span>th location in the <span class="code">f</span>th
+            frame onto the work stack.
           </td>
         </tr>
         <tr>
@@ -518,35 +528,54 @@
           <td>Pops an item off the work stack and prints a representation of it to the log.</td>
         </tr>
         <tr>
-          <td><span class="code">alloca</span></td>
-          <td><span class="code">a ..</span></td>
-          <td><span class="code">b ..</span></td>
+          <td><span class="code">dupa</span></td>
+          <td><span class="code">v c ..</span></td>
+          <td><span class="code">v .. v ..</span></td>
           <td>
-            Pops a number <span class="code">a</span> off the work stack, creates a new array
-            containing <span class="code">a</span> empty locations, and pushes a pointer to it onto
-            the work stack.
+            Pops an item <span class="code">v</span> and a number <span class="code">c</span> off
+            the work stack and duplicates <span class="code">v</span> <span class="code">c</span>
+            times, pushing each copy onto the work stack.
           </td>
         </tr>
         <tr>
           <td><span class="code">sta</span></td>
-          <td><span class="code">a i v ..</span></td>
+          <td><span class="code">f i c a1 .. ac ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops a pointer to an array <span class="code">a</span>, a number
-            <span class="code">i</span> and an item <span class="code">v</span> off the work stack,
-            and sets the <span class="code">i</span>th location in array
-            <span class="code">a</span> to value <span class="code">v</span>.
+            Pops a frame number <span class="code">f</span>, index number
+            <span class="code">i</span> and a count number <span class="code">c</span> off the work
+            stack, and then for <span class="code">j</span> ranging from
+            <span class="code">0</span> to <span class="code">c - 1</span>, pops an item off the
+            work stack and sets memory location <span class="code">[i+j:f]</span> to it.
           </td>
         </tr>
         <tr>
-          <td><span class="code">lda</span></td>
-          <td><span class="code">a i ..</span></td>
-          <td><span class="code">a[i] ..</span></td>
+          <td><span class="code">pusha [i:f]</span></td>
+          <td><span class="code">o ..</span></td>
+          <td><span class="code">x ..</span></td>
           <td>
-            Pops a pointer to an array <span class="code">a</span> and a number
-            <span class="code">i</span> off the work stack, then pushes the item at the
-            <span class="code">i</span>th location in array <span class="code">a</span> onto the
-            work stack.
+            Pops a number <span class="code">o</span> off the work stack and then pushes the item at
+            memory location <span class="code">[i+o:f]</span> onto the work stack.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="code">printa</span></td>
+          <td><span class="code">c a1 .. ac ..</span></td>
+          <td><span class="code">..</span></td>
+          <td>
+            Pops a number <span class="code">c</span> off the work stack and then pops
+            <span class="code">c</span> items off the work stack, printing each one. This can be
+            used to print an array.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="code">reta</span></td>
+          <td><span class="code">c a1 .. ac ..</span></td>
+          <td><span class="code">ac .. a1 ..</span></td>
+          <td>
+            Pops a number <span class="code">c</span> off the work stack and then pops
+            <span class="code">c</span> items off the work stack, pushing them back in reverse
+            order. This can be used to return an array from a function.
           </td>
         </tr>
         <tr>
