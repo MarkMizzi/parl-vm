@@ -3,13 +3,9 @@
 # set pipelining mode for errors
 set -e
 
-CONTAINER_NAME=pixel_playground
+CONTAINER_NAME=parl_playground
 
 ### Build docker container
-
-sudo docker build -t ${CONTAINER_NAME} .
-
-### Start docker container
 
 # Kill any running playground containers.
 # https://stackoverflow.com/questions/32073971/stopping-docker-containers-by-image-name-ubuntu
@@ -18,16 +14,20 @@ if [ ! -z "${RUNNING_CONTAINERS}" ]
 then
     sudo docker rm `sudo docker stop ${RUNNING_CONTAINERS}`
 fi
+sudo docker build -t ${CONTAINER_NAME} .
+
+### Start docker container
+
 sudo docker run -p 8080:8080 -d ${CONTAINER_NAME}
 
 ### Install NGINX configuration
-sudo cp nginx.conf /etc/nginx/sites-available/pixel_playground.conf
-sudo ln -f -s /etc/nginx/sites-available/pixel_playground.conf \
-    /etc/nginx/sites-enabled/pixel_playground.conf
+sudo cp nginx.conf /etc/nginx/sites-available/parl_playground.conf
+sudo ln -f -s /etc/nginx/sites-available/parl_playground.conf \
+    /etc/nginx/sites-enabled/parl_playground.conf
 
 sudo service nginx reload
 
 ### Get certificate
 sudo certbot -n --nginx --email mizzimark2001@gmail.com --agree-tos \
-    -d www.pixel.markmizzi.dev -d pixel.markmizzi.dev \
+    -d www.parl.markmizzi.dev -d parl.markmizzi.dev \
     --redirect --keep-until-expiring

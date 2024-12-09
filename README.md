@@ -1,5 +1,13 @@
 # ParL VM Playground
 
+## Running the playground locally
+
+If you want to run the playground locally, you can do so by running
+``` bash
+./scripts/run.bash
+```
+This will build and start the Docker image for the playground, which will be available at http://localhost:8080.
+
 ## Hosting your own copy of the playground
 
 Hosting a copy of the playground is a little work intensive unless you own the domain `parl.markmizzi.dev` (which at the time of writing belongs to me).
