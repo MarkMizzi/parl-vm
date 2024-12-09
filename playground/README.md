@@ -1,16 +1,16 @@
-# Pixel Playground
+# ParL Virtual Machine
 
-This is a playground app for the Pixel language, compiler and runtime.
+This is a playground for the ParL virtual machine implementation.
 
 ## Development
 
 You can build and run the webapp for development using the following command:
 
 ```bash
-npm run dev
+npm run vite-dev
 ```
 
-This starts the application, which can then be accessed in a browser on the same machine at the url http://localhost:8080. The application will be reloaded as you change your code.
+This starts the application, which can then be accessed in a browser on the same machine at the url http://localhost:5173. The application will be reloaded as you change your code.
 
 ## Building
 
