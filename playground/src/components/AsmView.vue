@@ -33,8 +33,8 @@ export default defineComponent({
         [
           'random',
           `.main          // this is the entry point into the program
-  push 4       // push 4 on the operand stack
-  jmp          // jmp to instruction 4 ( consume 4 from operand stack )
+  push 3       // push 3 on the operand stack
+  jmp          // jmp to instruction 3 ( consume 3 from operand stack )
   halt         // every program has a halt ... to quit
   push 1       // the program needs to allocate space for 1 variable
   oframe       // open frame - allocate space for variab

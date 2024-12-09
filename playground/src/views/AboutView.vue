@@ -1,6 +1,5 @@
 <template>
   <div class="about">
-
     <h1>ParL VM Specification</h1>
 
     <h2>ParL VM State</h2>
@@ -49,10 +48,9 @@
     <p>
       The frame stack consists of frames. Each frame is a resizable array of memory locations. A
       program can use the <span class="code">push</span> opcode to load a value from a memory
-      location in any frame in the stack. Without this functionality the ParL VM would not be
-      Turing complete, as its memory would be limited to the work stack. (Perhaps this is not
-      entirely true; since one could write a program that uses the ParL VM display as indexable
-      memory.)
+      location in any frame in the stack. Without this functionality the ParL VM would not be Turing
+      complete, as its memory would be limited to the work stack. (Perhaps this is not entirely
+      true; since one could write a program that uses the ParL VM display as indexable memory.)
     </p>
 
     <p>
@@ -181,8 +179,8 @@
           <td><span class="code">a b ..</span></td>
           <td><span class="code">a % b ..</span></td>
           <td>
-            Pops two numbers off the work stack, and computes <span class="code">a % b</span>, pushing 
-            the result onto the work stack.
+            Pops two numbers off the work stack, and computes <span class="code">a % b</span>,
+            pushing the result onto the work stack.
           </td>
         </tr>
         <tr>
@@ -384,7 +382,7 @@
           <td><span class="code">..</span></td>
           <td>
             Pops an instruction pointer and a number off the work stack, and jumps to the location
-            specified by the instruction pointer if the number is equal to zero.
+            specified by the instruction pointer if the number is not equal to zero.
           </td>
         </tr>
         <tr>
@@ -393,7 +391,7 @@
           <td><span class="code">..</span></td>
           <td>
             Pops an instruction pointer and a number off the work stack, and jumps to the location
-            specified by the instruction pointer if the number is not equal to zero.
+            specified by the instruction pointer if the number is equal to zero.
           </td>
         </tr>
         <tr>
@@ -481,8 +479,9 @@
           <td>
             Pops four numbers <span class="code">x, y, w, h</span> and a colour
             <span class="code">c</span> off the work stack and colours a rectangle on the screen of
-            width <span class="code">w</span> and height <span class="code">h</span> whose bottom left
-            corner is at <span class="code">x, y</span> with colour <span class="code">c</span>.
+            width <span class="code">w</span> and height <span class="code">h</span> whose bottom
+            left corner is at <span class="code">x, y</span> with colour
+            <span class="code">c</span>.
           </td>
         </tr>
         <tr>
@@ -563,7 +562,7 @@
           <td><span class="code">c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops floating point number <span class="code">c</span>, rounds it to the nearest 
+            Pops floating point number <span class="code">c</span>, rounds it to the nearest
             integer, and prints the character with that Unicode code point to the output log.
           </td>
         </tr>
