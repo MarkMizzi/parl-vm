@@ -13,7 +13,7 @@ import { RouterLink, RouterView } from 'vue-router'
       <div class="flex flex-row justify-end gap-x-4 w-full">
         <RouterLink class="link-green" to="/">home</RouterLink>
         <RouterLink class="link-green" to="/about">about</RouterLink>
-        <a href="https://github.com/MarkMizzi/pixel-compiler">
+        <a href="https://github.com/MarkMizzi/parl-vm">
           <img
             alt="View source on Github"
             class="logo"
