@@ -1,0 +1,21 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
+
+CMakeCache.txt
+_deps/**
+generated-includes/**
+cmake_install.cmake
+CMakeFiles/**
+build/**
+Makefile
+
+.cache/**
+
+compile_commands.json
+
+# Binaries
+pixelc
+pixelc_tests

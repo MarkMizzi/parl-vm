@@ -1,0 +1,59 @@
+@import './base.css';
+
+.link-green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  .link-green:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+/* Taken from https://www.w3schools.com/css/css_tooltip.asp */
+/*---------------------------------------------------------------*/
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  background-color: black;
+  color: #fff;
+  text-align: right;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 7px;
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  right: 110%;
+}
+
+.tooltip .tooltip-text::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent black;
+}
+
+@media (hover: hover) {
+  .tooltip:hover .tooltip-text {
+    visibility: visible;
+  }
+}
+/*---------------------------------------------------------------*/
+
+#app {
+  @apply h-screen;
+}
