@@ -1,13 +1,12 @@
 import {
-  type Color,
   type FunctionName,
   type PixIRData,
   type Label,
   PixIROpcode,
   PixIRDataType,
   checkDataType,
-  rgbToHex,
-  dataToString
+  dataToString,
+  rgbToHex
 } from './instructions'
 import { type Program } from './assembler'
 
@@ -66,7 +65,7 @@ export class ParlVM {
     ]
   }
 
-  private fillRect(x: number, y: number, w: number, h: number, c: Color) {
+  private fillRect(x: number, y: number, w: number, h: number, c: number) {
     if (x < 0 || y < 0 || x + w > this.state.width || y + h > this.state.height)
       throw RangeError(`Out of bounds fill x=${x}, y=${y}, w=${w}, h=${h} requested.`)
 
@@ -76,7 +75,7 @@ export class ParlVM {
 
     // fill in the rectangle.
     let context = this.state.screenHandle.getContext('2d')
-    context!.fillStyle = c
+    context!.fillStyle = rgbToHex(c)
     context!.fillRect(canvasX, canvasY, canvasW, canvasH)
   }
 
@@ -446,7 +445,7 @@ export class ParlVM {
             const pcoffset = instr.operand?.val as number
             // push ptr to instruction to work stack, as when we use the pc offset, pc will have changed.
             this.state.workStack.push({
-              dtype: PixIRDataType.INSTRPTR,
+              dtype: PixIRDataType.NUMBER,
               val: this.state.callStack[this.state.callStack.length - 1].pc + pcoffset
             })
           } else {
@@ -467,7 +466,7 @@ export class ParlVM {
         case PixIROpcode.JMP: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.INSTRPTR])
+          checkDataType(x, [PixIRDataType.NUMBER])
           this.state.callStack[this.state.callStack.length - 1].pc = x.val as number
           break
         }
@@ -476,7 +475,7 @@ export class ParlVM {
           const instrptr = this.safePop()
           const cond = this.safePop()
 
-          checkDataType(instrptr, [PixIRDataType.INSTRPTR])
+          checkDataType(instrptr, [PixIRDataType.NUMBER])
           checkDataType(cond, [PixIRDataType.NUMBER])
 
           // update pc
@@ -490,7 +489,7 @@ export class ParlVM {
           const instrptr = this.safePop()
           const cond = this.safePop()
 
-          checkDataType(instrptr, [PixIRDataType.INSTRPTR])
+          checkDataType(instrptr, [PixIRDataType.NUMBER])
           checkDataType(cond, [PixIRDataType.NUMBER])
 
           // update pc
@@ -601,9 +600,9 @@ export class ParlVM {
 
           checkDataType(x, [PixIRDataType.NUMBER])
           checkDataType(y, [PixIRDataType.NUMBER])
-          checkDataType(c, [PixIRDataType.COLOR])
+          checkDataType(c, [PixIRDataType.NUMBER])
 
-          this.fillRect(x.val as number, y.val as number, 1, 1, c.val as Color)
+          this.fillRect(x.val as number, y.val as number, 1, 1, c.val as number)
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
@@ -620,14 +619,14 @@ export class ParlVM {
           checkDataType(y, [PixIRDataType.NUMBER])
           checkDataType(w, [PixIRDataType.NUMBER])
           checkDataType(h, [PixIRDataType.NUMBER])
-          checkDataType(c, [PixIRDataType.COLOR])
+          checkDataType(c, [PixIRDataType.NUMBER])
 
           this.fillRect(
             x.val as number,
             y.val as number,
             w.val as number,
             h.val as number,
-            c.val as Color
+            c.val as number
           )
 
           this.state.callStack[this.state.callStack.length - 1].pc++
@@ -637,9 +636,9 @@ export class ParlVM {
         case PixIROpcode.CLEAR: {
           const c = this.safePop()
 
-          checkDataType(c, [PixIRDataType.COLOR])
+          checkDataType(c, [PixIRDataType.NUMBER])
 
-          this.fillRect(0, 0, this.state.width, this.state.height, c.val as Color)
+          this.fillRect(0, 0, this.state.width, this.state.height, c.val as number)
 
           this.state.callStack[this.state.callStack.length - 1].pc++
           break
@@ -665,8 +664,8 @@ export class ParlVM {
           const context = this.state.screenHandle.getContext('2d')
           const imageData = context!.getImageData(canvasX, canvasY, 1, 1).data
           this.state.workStack.push({
-            dtype: PixIRDataType.COLOR,
-            val: rgbToHex(imageData[0], imageData[1], imageData[2])
+            dtype: PixIRDataType.NUMBER,
+            val: (imageData[0] << 16) | (imageData[1] << 8) | imageData[2]
           })
 
           this.state.callStack[this.state.callStack.length - 1].pc++

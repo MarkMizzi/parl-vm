@@ -61,20 +61,15 @@ export enum PixIROpcode {
 
 /* Data type enum used to tag VM data so that it can be type-checked at runtime. */
 export enum PixIRDataType {
-  COLOR = 'color',
   NUMBER = 'number',
   LABEL = 'label',
   // relative offset from PC.
   PCOFFSET = 'pcoffset',
-  // location in a function
-  INSTRPTR = 'instrptr',
   // function address
   FUNCTION = 'function',
   ARRAY = 'array'
 }
 
-/* A Color is a CSS RGB hex string, e.g. #ff57 */
-export type Color = string
 /* A Label is a location in VM memory, consisting of an [offset, frame] pair.
  * Data pointed to by the label will be in the offset^th position of frame.
  */
@@ -85,14 +80,12 @@ export type FunctionName = string
 /* Represents data type used by the VM (e.g. in work stack and frames). */
 export interface PixIRData {
   dtype: PixIRDataType
-  val: Color | number | boolean | Label | FunctionName | (PixIRData | undefined)[]
+  val: number | boolean | Label | FunctionName | (PixIRData | undefined)[]
 }
 
 /* Convert Pixel VM data to a human-readable string */
 export function dataToString(d: PixIRData): string {
   switch (d.dtype) {
-    case PixIRDataType.COLOR:
-      return (d.val as Color).toString()
     case PixIRDataType.NUMBER:
       return (d.val as number).toString()
     case PixIRDataType.LABEL:
@@ -100,8 +93,6 @@ export function dataToString(d: PixIRData): string {
       return `[${offset}:${frame}]`
     case PixIRDataType.PCOFFSET:
       return `#PC+${d.val as number}`
-    case PixIRDataType.INSTRPTR:
-      return `&${d.val as number}`
     case PixIRDataType.FUNCTION:
       return d.val as FunctionName
     case PixIRDataType.ARRAY:
@@ -126,11 +117,20 @@ export interface PixIRInstruction {
   operand?: PixIRData
 }
 
-/* Utility function to convert rgb numbers into Color hex string. */
-export function rgbToHex(r: number, g: number, b: number): Color {
-  if (r > 255 || g > 255 || b > 255)
-    throw RangeError(`Invalid color component rgb(${r}, ${g}, ${b}).`)
-  return '#' + ((r << 16) | (g << 8) | b).toString(16)
+export function rgbToHex(rgb: number): string {
+  if (rgb > 0xffffff || rgb < 0)
+    throw RangeError(`Invalid RGB number ${rgb}, must be in range [0, 0xffffff]`)
+
+  const r = (rgb >> 16) & 0xff
+  const g = (rgb >> 8) & 0xff
+  const b = rgb & 0xff
+
+  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`
+}
+
+/* Utility function to parse rgb colour hex strings. */
+function parseRGB(hex: string): number {
+  return parseInt(hex.substring(1), 16)
 }
 
 /* Utility function that checks whether every character in input string is alpha-numeric */
@@ -201,7 +201,7 @@ function readOperand(opStr: string): PixIRData {
     isColor &&= !isNaN(parseInt(opStr.substring(1), 16))
   }
   if (!isColor) throw SyntaxError(`Invalid operand ${opStr} found.`)
-  return { dtype: PixIRDataType.COLOR, val: opStr }
+  return { dtype: PixIRDataType.NUMBER, val: parseRGB(opStr) }
 }
 
 export function readInstr(line: string): PixIRInstruction {
