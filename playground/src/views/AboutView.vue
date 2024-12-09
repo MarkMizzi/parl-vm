@@ -2,65 +2,47 @@
   <div class="about">
     <h1>ParL VM Specification</h1>
 
-    <h2>ParL VM State</h2>
+    <h2>State</h2>
 
-    <p>The ParL VM state consists of the following:</p>
+    <p>The state of the ParL VM consists of the following:</p>
     <ul>
-      <li>A work stack used in any computation</li>
-      <li>A call stack which tracks function calls</li>
-      <li>A frame stack which is used to manage scopes</li>
-      <li>A graphical display with a fixed width and height</li>
-      <li>A log which is used for output</li>
+      <li>A work stack used in any computation.</li>
+      <li>A program counter which tracks the current program location.</li>
+      <li>A frame stack which is used to manage scopes.</li>
+      <li>A graphical display with a fixed width and height.</li>
+      <li>A log used for output.</li>
+      <li>A return pointer stack which stores program counters for returning from a function.</li>
     </ul>
 
     <p>
-      The work stack is used when computing values. It can only be accessed as a stack; in
-      particular the program cannot see beyond the topmost element without first popping it off the
-      stack.
+      The work stack is used as a &quot;scratch space&quot; when computing values. It can only be
+      accessed as a stack; in particular a program cannot see beyond the topmost element without
+      first popping it off the stack.
     </p>
 
     <p>
-      The call stack is used whenever a function call or a return needs to be executed. Each item in
-      the stack consists of a local (function-specific) instruction pointer (also called program
-      counter or PC), and a reference to the function itself.
+      The frame stack consists of frames. Each frame is a resizable array of memory locations. The
+      <span class="code">i</span>th memory location within frame <span class="code">f</span> can be
+      denoted as <span class="code">[i:f]</span>. <span class="code">[i]</span> can be used as
+      shorthand for <span class="code">[i:0]</span>. This notation is used in ParL assembly language
+      and in the rest of this document. Note that <span class="code">0</span> denotes the topmost
+      frame in the frame stack, and that new frames are pushed onto the top of the stack.
     </p>
 
     <p>
-      When a function is called, an item containing a reference to the called function is pushed to
-      the stack (with the local PC initialized to 0).
-    </p>
-
-    <p>
-      When a <span class="code">ret</span> opcode needs to be executed, the topmost item is simply
-      popped from the call stack.
-    </p>
-
-    <p>
-      It should be clear from this description that the topmost item of the call stack acts as a
-      sort of global PC, as it contains the current function, as well as a local PC within that
-      function. The use of a frame stack instead of a single global PC allows us to avoid needing
-      some sort of
-      <a href="https://en.wikipedia.org/wiki/Calling_convention" class="link-green"
-        >&quot;calling convention&quot;</a
-      >.
-    </p>
-
-    <p>
-      The frame stack consists of frames. Each frame is a resizable array of memory locations. A
-      program can use the <span class="code">push</span> opcode to load a value from a memory
-      location in any frame in the stack. Without this functionality the ParL VM would not be Turing
-      complete, as its memory would be limited to the work stack. (Perhaps this is not entirely
-      true; since one could write a program that uses the ParL VM display as indexable memory.)
+      A program can use a <span class="code">push [i:f]</span> instruction to load a value from a
+      memory location in any frame in the stack.
     </p>
 
     <p>
       New frames are created by the <span class="code">call</span> or
-      <span class="code">oframe</span> opcodes. New frames will be pushed onto the frame stack.
+      <span class="code">oframe</span> opcodes. New frames will be pushed onto the top of the frame
+      stack.
     </p>
 
     <p>
-      Frames are meant to correspond to scopes in the ParL language; the ParL compiler generates
-      code that creates new frames when entering control blocks such as an
+      Frames are meant to correspond to scopes; a high level language compiler might generate code
+      that creates new frames when entering control blocks such as an
       <span class="code">if</span> or <span class="code">for</span> statement.
     </p>
 
@@ -68,60 +50,80 @@
 
     <p>
       Frames can be popped off the frame stack and destroyed using the
-      <span class="code">ret</span> or the <span class="code">cframe</span> opcodes.
+      <span class="code">cframe</span> opcode.
     </p>
 
     <p>
       The display is used to output graphics. The <span class="code">read</span> opcode can be used
-      to read a ParL on the display. The <span class="code">pixel</span> and
-      <span class="code">pixelr</span> opcodes can be used to colour pixels on the display. It is
+      to read a pixel on the display. The <span class="code">write</span> and
+      <span class="code">writebox</span> opcodes can be used to colour pixels on the display. It is
       assumed that the display's width and height do not change during execution of a program.
+    </p>
+
+    <h2>Function Calls and Returns</h2>
+
+    <p>
+      Whenever a <span class="code">call</span> opcode is encountered, a function name is popped off
+      the work stack. The location of the start of the function is looked up in a table. The value
+      of the program counter+1 is pushed onto the return pointer stack, and then the program counter
+      is set to the start of the called function.
+    </p>
+
+    <p>
+      A number indicating the argument count is then popped off the work stack, and that number of
+      items are popped off the work stack and placed in order in a newly allocated frame that is
+      pushed onto the frame stack.
+    </p>
+
+    <p>
+      Function returns are implemented by a <span class="code">ret</span> instruction which pops the
+      topmost item off the return pointer stack and sets the program counter to it.
+    </p>
+
+    <p>
+      Note that <span class="code">ret</span> will not destroy the frame allocated by
+      <span class="code">call</span>; this must be done by a seperate
+      <span class="code">cframe</span> instruction. The reason is that
+      <span class="code">ret</span> may be executed in an arbitrarily nested scope (the depth of
+      frames allocated within a function can be arbitrarily large), and hence any
+      <span class="code">ret</span> instruction will require a number of
+      <span class="code">cframe</span> instructions before it anyways.
     </p>
 
     <h2>Data types</h2>
 
-    <p>Each item in the work or frame stack has one of the following types:</p>
+    <p>Each item in the work or frame stack has one of the following two types:</p>
     <ul>
       <li>An IEEE754 floating point number.</li>
-      <li>A colour (encoded as a hex string, e.g. <span class="code">#7f5612</span>)</li>
-      <li>
-        An instruction pointer which specifies the offset of some instruction within the current
-        function. When a <span class="code">push</span> instruction with a PC relative offset (e.g.
-        <span class="code">#PC+9</span>) is executed, the PC relative offset is converted into an
-        instruction pointer before pushing onto the work stack. This is necessary since the PC
-        relative offset is specified relative to the current PC, which will change by the time we
-        actually use the offset.
-      </li>
       <li>
         A reference to a function (encoded as a function label, e.g.
         <span class="code">.main</span>)
       </li>
-      <li>A pointer to an array of one of the above data types (or another array type)</li>
     </ul>
-
-    <p>
-      Memory locations within a frame or an array can also contain a special
-      <span class="code">undefined</span> value, meaning they have not yet been initialized.
-    </p>
 
     <p>
       Both the work stack and the frame stack are untyped, meaning any location within them can
       contain a value of any type. Each opcode requires the items it pops from the work stack to
-      have a certain type; if one of these expectations is violated, the VM will crash with a type
-      error. The expected types for each opcode are tabulated below.
+      have a certain type -- other constraints may also need to be satisfied -- if one of these
+      expectations is violated, the VM will crash (throw an Error). The expected types (and
+      constraints) for each opcode are tabulated below.
     </p>
 
     <p>
-      Booleans can be encoded as numbers. The logical opcodes treat any non-zero number as true and
-      zero as false.
+      A compiler can encode booleans as numbers. The logical opcodes treat any non-zero number as
+      true and zero as false.
     </p>
 
     <h2>Initial State</h2>
 
     <p>
       The VM is initialized with an empty work stack and a frame stack containing a single empty
-      frame. The call stack initially holds a single item referencing a special function called
-      <span class="code">.main</span> which is the designated entry point for a program.
+      frame.
+    </p>
+
+    <p>
+      The return pointer stack is initially empty, while the program counter has an initial value of
+      <span class="code">0</span>
     </p>
 
     <h2>Opcodes</h2>
@@ -207,7 +209,7 @@
           <td><span class="code">a &#8744; b ..</span></td>
           <td>
             Pops two numbers off the work stack, computes their logical or (maximum) and pushes the
-            result onto the work stack.
+            result onto the work stack. Equivalent to <span class="code">max</span>.
           </td>
         </tr>
         <tr>
@@ -216,7 +218,7 @@
           <td><span class="code">a &#8743; b ..</span></td>
           <td>
             Pops two numbers off the work stack, computes their logical and (minimum) and pushes the
-            result onto the work stack.
+            result onto the work stack. Equivalent to <span class="code">min</span>.
           </td>
         </tr>
         <tr>
@@ -225,7 +227,7 @@
           <td><span class="code">min(a,b) ..</span></td>
           <td>
             Pops two numbers off the work stack, computes their minimum and pushes the result onto
-            the work stack.
+            the work stack. Equivalent to <span class="code">and</span>.
           </td>
         </tr>
         <tr>
@@ -234,7 +236,7 @@
           <td><span class="code">max(a,b) ..</span></td>
           <td>
             Pops two numbers off the work stack, computes their maximum and pushes the result onto
-            the work stack.
+            the work stack. Equivalent to <span class="code">or</span>.
           </td>
         </tr>
         <tr>
@@ -251,8 +253,8 @@
           <td><span class="code">a ..</span></td>
           <td><span class="code">rand(0,a) ..</span></td>
           <td>
-            Pops a number off the work stack, and pushes a random (floating point) number between 0
-            and that number (exclusive) onto the work stack.
+            Pops a number off the work stack, and pushes a random whole number between 0 and that
+            number (exclusive) onto the work stack.
           </td>
         </tr>
         <tr>
@@ -338,25 +340,29 @@
             Arguments can be:
             <ul>
               <li>IEEE754 floating point numbers.</li>
-              <li>A colour (encoded as a hex string, e.g. <span class="code">#7f5612</span>).</li>
+              <li>
+                A colour (encoded as a hex string, e.g. <span class="code">#7f5612</span>). This is
+                converted into a floating point number before pushing it onto the work stack.
+              </li>
               <li>
                 A reference to a function (encoded as a function label, e.g.
                 <span class="code">.main</span>)
               </li>
               <li>
-                A PC relative offset (e.g. <span class="code">#PC+9</span>). This is converted into
-                an instruction pointer (see above) before pushing onto the work stack.
+                A PC relative offset (e.g. <span class="code">#PC+9</span>). When this is given as
+                the operand to <span class="code">push</span>, the current value of the program
+                counter is added to the specified offset, and the resulting number is pushed onto
+                the work stack.
               </li>
               <li>
-                A memory location of the form <span class="code">[offset:frame]</span>. This will
-                push onto the work stack the element at the <span class="code">offset</span>th
-                position within the <span class="code">frame</span>th frame in the frame stack. Note
-                that frame <span class="code">0</span> is the frame at the top of the stack.
+                A memory location of the form <span class="code">[i:f]</span>. This will push onto
+                the work stack the element at the <span class="code">i</span>th position within the
+                <span class="code">f</span>th frame in the frame stack. Note that frame
+                <span class="code">0</span> is the frame at the top of the stack.
               </li>
               <li>
-                A memory location of the form <span class="code">[offset]</span>. This is similar to
-                the above, except the frame is assumed to be <span class="code">0</span>, i.e. the
-                top frame.
+                A memory location of the form <span class="code">[i]</span>. This is equivalent to
+                <span class="code">[i:0]</span>.
               </li>
             </ul>
           </td>
@@ -382,8 +388,8 @@
           <td><span class="code">a ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops an instruction pointer off the work stack, and jumps to the location specified by
-            the instruction pointer.
+            Pops a number off the work stack, and sets the value of the program counter to that
+            number.
           </td>
         </tr>
         <tr>
@@ -391,8 +397,9 @@
           <td><span class="code">a b ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops an instruction pointer and a number off the work stack, and jumps to the location
-            specified by the instruction pointer if the number is not equal to zero.
+            Pops two numbers <span class="code">a, b</span> off the work stack, and sets the program
+            counter to <span class="code">a</span> if <span class="code">b</span> is not equal to
+            zero.
           </td>
         </tr>
         <tr>
@@ -400,8 +407,8 @@
           <td><span class="code">a b ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops an instruction pointer and a number off the work stack, and jumps to the location
-            specified by the instruction pointer if the number is equal to zero.
+            Pops two numbers <span class="code">a, b</span> off the work stack, and sets the program
+            counter to <span class="code">a</span> if <span class="code">b</span> is equal to zero.
           </td>
         </tr>
         <tr>
@@ -409,42 +416,43 @@
           <td><span class="code">f n a1 .. an ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops a function label and a number <span class="code">n</span> off the work stack. It
-            then pops <span class="code">n</span> items off the work stack, creates a new frame
-            containing them, and pushes it onto the work stack. It then pushes a new item containing
-            the function label onto the call stack, effectively calling the function with arguments
-            <span class="code">a1 .. an</span>.
+            Pops a function label <span class="code">f</span> and a number
+            <span class="code">n</span> off the work stack. The VM then pops
+            <span class="code">n</span> items off the work stack, creates a new frame containing
+            them (preserving their order), and pushes it onto the frame stack. It then pushes the
+            program counter+1 onto the return pointer stack and sets the value of the program
+            counter to the location of the start of <span class="code">f</span>.
           </td>
         </tr>
         <tr>
           <td><span class="code">ret</span></td>
           <td><span class="code">..</span></td>
           <td><span class="code">..</span></td>
-          <td>Pops one frame off the frame stack, and pops one item off the call stack.</td>
+          <td>Pops one item from the return pointer stack, and sets the program counter to it.</td>
         </tr>
         <tr>
           <td><span class="code">halt</span></td>
           <td><span class="code">..</span></td>
           <td><span class="code">..</span></td>
-          <td>Halts the ParL VM.</td>
+          <td>Halts the ParL VM. No more instructions will be executed.</td>
         </tr>
         <tr>
           <td><span class="code">alloc</span></td>
-          <td><span class="code">a ..</span></td>
+          <td><span class="code">n ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops the number <span class="code">a</span> off the work stack and allocates
-            <span class="code">a</span> new empty locations at the end of the frame at the top of
+            Pops the number <span class="code">n</span> off the work stack and allocates
+            <span class="code">n</span> new empty locations at the end of the frame at the top of
             the frame stack.
           </td>
         </tr>
         <tr>
           <td><span class="code">oframe</span></td>
-          <td><span class="code">a ..</span></td>
+          <td><span class="code">n ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops the number <span class="code">a</span> off the work stack and creates a new frame
-            with <span class="code">a</span> empty locations, pushing it onto the frame stack.
+            Pops the number <span class="code">n</span> off the work stack and creates a new frame
+            with <span class="code">n</span> empty locations, pushing it onto the frame stack.
           </td>
         </tr>
         <tr>
@@ -455,21 +463,22 @@
         </tr>
         <tr>
           <td><span class="code">st</span></td>
-          <td><span class="code">f l v ..</span></td>
+          <td><span class="code">f i v ..</span></td>
           <td><span class="code">..</span></td>
           <td>
             Pops two numbers and an item off the work stack, and stores the item
-            <span class="code">v</span> at the <span class="code">l</span>th location of the
-            <span class="code">f</span>th frame in the frame stack.
+            <span class="code">v</span> at <span class="code">[i:f]</span> (the
+            <span class="code">i</span>th location of the <span class="code">f</span>th frame in the
+            frame stack).
           </td>
         </tr>
         <tr>
           <td><span class="code">delay</span></td>
-          <td><span class="code">a ..</span></td>
+          <td><span class="code">n ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops a number <span class="code">a</span> off the work stack and sleeps for
-            <span class="code">a</span> milliseconds.
+            Pops a number <span class="code">n</span> off the work stack and sleeps for
+            <span class="code">n</span> milliseconds.
           </td>
         </tr>
         <tr>
@@ -477,9 +486,10 @@
           <td><span class="code">x y c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops two numbers <span class="code">x, y</span> and a colour
-            <span class="code">c</span> off the work stack and colours the pixel on the screen at
-            <span class="code">x, y</span> with colour <span class="code">c</span>.
+            Pops three numbers <span class="code">x, y, c</span> and off the work stack and colours
+            the pixel on the screen at <span class="code">x, y</span> with
+            <span class="code">c</span>. <span class="code">c</span> must be a valid 8-bit color
+            depth RGB colour in the range <span class="code">[0, 0xffffff]</span>.
           </td>
         </tr>
         <tr>
@@ -487,18 +497,23 @@
           <td><span class="code">x y w h c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops four numbers <span class="code">x, y, w, h</span> and a colour
-            <span class="code">c</span> off the work stack and colours a rectangle on the screen of
-            width <span class="code">w</span> and height <span class="code">h</span> whose bottom
-            left corner is at <span class="code">x, y</span> with colour
-            <span class="code">c</span>.
+            Pops five numbers <span class="code">x, y, w, h, c</span> off the work stack and colours
+            a rectangle on the screen of width <span class="code">w</span> and height
+            <span class="code">h</span> whose bottom left corner is at
+            <span class="code">x, y</span> with <span class="code">c</span>.
+            <span class="code">c</span> must be a valid 8-bit color depth RGB colour in the range
+            <span class="code">[0, 0xffffff]</span>.
           </td>
         </tr>
         <tr>
           <td><span class="code">clear</span></td>
           <td><span class="code">c ..</span></td>
           <td><span class="code">..</span></td>
-          <td>Pops a colour off the work stack and colours the entire screen with it.</td>
+          <td>
+            Pops a number off the work stack and colours the entire screen with it.
+            <span class="code">c</span> must be a valid 8-bit color depth RGB colour in the range
+            <span class="code">[0, 0xffffff]</span>.
+          </td>
         </tr>
         <tr>
           <td><span class="code">read</span></td>
@@ -507,6 +522,8 @@
           <td>
             Pops two numbers <span class="code">x, y</span> off the work stack, and pushes the
             colour of the pixel at <span class="code">x, y</span> on the screen onto the work stack.
+            <span class="code">c</span> will be represented as an 8-bit color depth RGB colour in
+            the range <span class="code">[0, 0xffffff]</span>.
           </td>
         </tr>
         <tr>
@@ -591,8 +608,8 @@
           <td><span class="code">c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops floating point number <span class="code">c</span>, rounds it to the nearest
-            integer, and prints the character with that Unicode code point to the output log.
+            Pops floating point number <span class="code">c</span>, rounds it to the nearest whole
+            number, and prints the character with that Unicode code point to the output log.
           </td>
         </tr>
       </tbody>
