@@ -248,10 +248,11 @@ export function readInstr(line: string): PixIRInstruction {
       if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
       if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
       operand = { dtype: PixIRDataType.LABEL, val: [offset, frame] } as PixIRData
+    } else {
+      throw SyntaxError(
+        `Invalid operand given to pusha instruction ${opStr}; operand should be memory location in form [offset:frame].`
+      )
     }
-    throw SyntaxError(
-      `Invalid operand given to pusha instruction ${opStr}; operand should be memory location in form [offset:frame].`
-    )
   }
 
   return { opcode, operand }
