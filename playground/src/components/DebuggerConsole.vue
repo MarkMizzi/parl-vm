@@ -58,7 +58,8 @@ print  [<Idx>:<Frame>]               Print the memory location specified by [<Id
 print  [<Idx>]                       Print the memory location specified by [<Idx>:0]
 print  [:<Frame>]                    Print the contents of frame <Frame>
 print  [:]                           Print the entire frame stack
-print  [:].len                       Print the number of frames in the frame stack`
+print  [:].len                       Print the number of frames in the frame stack
+`
     return
   }
 

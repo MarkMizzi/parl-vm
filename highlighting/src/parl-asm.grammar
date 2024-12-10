@@ -85,7 +85,7 @@ Data {
     "getchar" | "GETCHAR"
   }
 
-  Number { $[0-9]* "."? $[0-9]+ | $[0-9]+ "e" ("+" | "-") $[0-9]+  }
+  Number { $[0-9]* "."? $[0-9]+ | $[0-9]+ "e" ("+" | "-")? $[0-9]+  }
   PCOffset { "#PC" $[+-] Number }
   FunctionLabel { "." Identifier }
   Colour { '#' $[0-9a-fA-F]+ }
