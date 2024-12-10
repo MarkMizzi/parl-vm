@@ -119,6 +119,147 @@ export class ParlVM {
     return breakpointsStrArr.join(', ')
   }
 
+  /* State printing interface */
+  /* ------------------------ */
+
+  public printState(query: string) {
+    // print program counter
+    if (query === '#PC') {
+      return this.state.programCounter.toString()
+    }
+
+    if (query === 'workStack') {
+      return this.state.workStack.map((x) => x!.toString()).join(', ')
+    }
+
+    if (query === 'workStack.len') {
+      return this.state.workStack.length.toString()
+    }
+
+    if (query.match(/^workStack\[\d+\]$/)) {
+      const offset = parseInt(query.substring('workStack['.length, query.length - 1))
+      if (offset < 0 || offset >= this.state.workStack.length)
+        throw RangeError(
+          `Out of bounds access to work stack ${offset}, access must be in range [0, ${this.state.workStack.length - 1}]`
+        )
+
+      return this.state.workStack[offset].toString()
+    }
+
+    if (query.match(/^workStack\[\d*..\d*\]$/)) {
+      const [startStr, endStr] = query.substring('workStack['.length, query.length - 1).split('..')
+      const start = startStr === '' ? 0 : parseInt(startStr)
+      const end = endStr === '' ? this.state.workStack.length : parseInt(endStr)
+      if (start < 0 || end >= this.state.workStack.length)
+        throw RangeError(
+          `Out of bounds access to range of work stack [${start},${end}], access must be in range [0, ${this.state.workStack.length - 1}]`
+        )
+
+      return this.state.workStack
+        .slice(start, end)
+        .map((x) => x!.toString())
+        .join(', ')
+    }
+
+    if (query === 'retStack') {
+      return this.state.retStack.map((x) => x!.toString()).join(', ')
+    }
+
+    if (query === 'retStack.len') {
+      return this.state.retStack.length.toString()
+    }
+
+    if (query.match(/^retStack\[\d+\]$/)) {
+      const offset = parseInt(query.substring('retStack['.length, query.length - 1))
+      if (offset < 0 || offset >= this.state.retStack.length)
+        throw RangeError(
+          `Out of bounds access to return pointer stack ${offset}, access must be in range [0, ${this.state.retStack.length - 1}]`
+        )
+
+      return this.state.retStack[offset].toString()
+    }
+
+    if (query.match(/^retStack\[\d*..\d*\]$/)) {
+      const [startStr, endStr] = query.substring('retStack['.length, query.length - 1).split('..')
+      const start = startStr === '' ? 0 : parseInt(startStr)
+      const end = endStr === '' ? this.state.retStack.length : parseInt(endStr)
+      if (start < 0 || end >= this.state.retStack.length)
+        throw RangeError(
+          `Out of bounds access to range of return pointer stack [${start},${end}], access must be in range [0, ${this.state.retStack.length - 1}]`
+        )
+
+      return this.state.retStack
+        .slice(start, end)
+        .map((x) => x!.toString())
+        .join(', ')
+    }
+
+    // print one loc in the frame stack.
+    if (query.match(/^\[\d+:\d+\]$/)) {
+      const [offset, frame] = query
+        .substring(1, query.length - 1)
+        .split(':', 1)
+        .map((x) => parseInt(x))
+
+      const data = this.state.frameStack[frame][offset]
+      if (data == undefined) {
+        throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
+      }
+
+      return data.toString()
+    }
+
+    // print one loc in the topmost frame in the frame stack.
+    if (query.match(/^\[\d+\]$/)) {
+      const offset = parseInt(query.substring(1, query.length - 1))
+
+      const data = this.state.frameStack[0][offset]
+      if (data == undefined) {
+        throw RangeError(`Memory access to undefined location [${offset}]`)
+      }
+
+      return data.toString()
+    }
+
+    // print one whole frame in the frame stack.
+    if (query.match(/^\[:\d+\]$/)) {
+      const frame = parseInt(query.substring(2, query.length - 1))
+
+      const data = this.state.frameStack[frame]
+      if (data == undefined) {
+        throw RangeError(`Tried accessing out of bounds frame [${frame}]`)
+      }
+
+      return data.map((x) => x!.toString()).join(', ')
+    }
+
+    // print length of a frame in the frame stack.
+    if (query.match(/^\[:\d+\]\.len$/)) {
+      const frame = parseInt(query.substring(2, query.length - '].len'.length))
+
+      const data = this.state.frameStack[frame]
+      if (data == undefined) {
+        throw RangeError(`Tried accessing out of bounds frame [${frame}]`)
+      }
+
+      return data.length.toString()
+    }
+
+    // print entire frame stack.
+    if (query.match(/^\[:\]$/)) {
+      return this.state.frameStack
+        .map((x, i) => `Frame ${i}: ` + x.map((y) => y!.toString()).join(', '))
+        .join('\n')
+    }
+
+    // print number of frames in frame stack
+    if (query === '[:].len') {
+      return this.state.frameStack.length.toString()
+    }
+
+    throw SyntaxError(`Invalid query for printing state ${query}`)
+  }
+
   /* Execution interface */
   /* ------------------- */
 
