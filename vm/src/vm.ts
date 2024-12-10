@@ -40,6 +40,42 @@ export class ParlVM {
   protected state: ParlVMState
   protected breakpoints: Set<number>
 
+  private onHaltedChangeHandlers: ((h: boolean) => void)[] = []
+  private onPausedChangeHandlers: ((p: boolean) => void)[] = []
+
+  public set onHaltedChange(handler: (h: boolean) => void) {
+    this.onHaltedChangeHandlers.push(handler)
+  }
+  public set onPausedChange(handler: (p: boolean) => void) {
+    this.onPausedChangeHandlers.push(handler)
+  }
+
+  /* Wrappers for this.state.halted and this.state.paused */
+  /* ---------------------------------------------------- */
+  /* These are used internally by the VM instead of the
+   * corresponding this.state vars so that callbacks can
+   * be set by external code and executed whenever these are changed.
+   * Very useful for implementing reactive UI based on VM.
+   */
+
+  set halted(h: boolean) {
+    this.state.halted = h
+    for (const handler of this.onHaltedChangeHandlers) handler(h)
+  }
+
+  get halted() {
+    return this.state.halted
+  }
+
+  set paused(p: boolean) {
+    this.state.paused = p
+    for (const handler of this.onPausedChangeHandlers) handler(p)
+  }
+
+  get paused(): boolean {
+    return this.state.paused
+  }
+
   constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
     this.state = ParlVM.initState(screenHandle, loggerHandle)
     // initialize program to the program that does nothing and halts immediately.
@@ -89,7 +125,7 @@ export class ParlVM {
     this.state.frameStack = [[]]
     this.state.workStack = []
     this.state.programCounter = 0
-    this.state.paused = false
+    this.paused = false
   }
 
   /* Breakpoint interface */
@@ -264,7 +300,7 @@ export class ParlVM {
   /* ------------------- */
 
   private async step() {
-    if (this.state.halted) throw Error('Trying to execute step in halted VM.')
+    if (this.halted) throw Error('Trying to execute step in halted VM.')
 
     const pc = this.state.programCounter
 
@@ -601,7 +637,7 @@ export class ParlVM {
         }
 
         case PixIROpcode.HALT: {
-          this.state.halted = true
+          this.halted = true
           break
         }
 
@@ -874,7 +910,7 @@ export class ParlVM {
               // Note that we do NOT advance the PC in case the VM was paused,
               // as we have not yet processed a char and we need to resume at the
               // start of the getchar instruction.
-              if (this.state.halted || this.state.paused) return
+              if (this.halted || this.paused) return
             }
 
             if (key.length > 1) {
@@ -914,41 +950,41 @@ export class ParlVM {
       }
 
       // if we've hit a breakpoint we should pause
-      if (this.breakpoints.has(this.state.programCounter)) this.state.paused = true
+      if (this.breakpoints.has(this.state.programCounter)) this.paused = true
     } catch (e) {
       // any errors are fatal and halt the VM
-      this.state.halted = true
+      this.halted = true
       throw e
     }
   }
 
   public async run() {
     this.reset()
-    this.state.halted = false
+    this.halted = false
     await this.continue()
   }
 
   public async continue() {
-    this.state.paused = false
-    while (!this.state.halted && !this.state.paused) {
+    this.paused = false
+    while (!this.halted && !this.paused) {
       await this.step()
     }
   }
 
   public pause() {
-    this.state.paused = true
+    this.paused = true
   }
 
   public stop() {
-    this.state.halted = true
+    this.halted = true
   }
 
   public async safeStep() {
-    if (this.state.halted) {
+    if (this.halted) {
       this.reset()
-      this.state.halted = false
-      this.state.paused = true
-    } else if (!this.state.paused) {
+      this.halted = false
+      this.paused = true
+    } else if (!this.paused) {
       throw Error('Cannot step while the Pixel VM is running.')
     }
 
@@ -956,32 +992,28 @@ export class ParlVM {
   }
 
   public async stepOut() {
-    if (this.state.halted) {
+    if (this.halted) {
       this.reset()
-      this.state.halted = false
-      this.state.paused = true
-    } else if (!this.state.paused) {
+      this.halted = false
+      this.paused = true
+    } else if (!this.paused) {
       throw Error('Cannot step out of a function while the Pixel VM is running.')
     }
 
     // unpause while stepping out
-    this.state.paused = false
+    this.paused = false
     // as soon as stack size dips lower than initial size (or the machine halts)
     // we have stepped out of the function.
     const currCallStackSize = this.state.retStack.length
-    while (
-      !this.state.halted &&
-      !this.state.paused &&
-      this.state.retStack.length >= currCallStackSize
-    ) {
+    while (!this.halted && !this.paused && this.state.retStack.length >= currCallStackSize) {
       await this.step()
     }
     // pause now that we have stepped out
-    this.state.paused = true
+    this.paused = true
   }
 
   public setWidth(width: number) {
-    if (!this.state.halted) throw Error('Cannot set width of Pixel VM screen while it is running.')
+    if (!this.halted) throw Error('Cannot set width of Pixel VM screen while it is running.')
     if (this.state.screenHandle.width < width)
       throw RangeError(
         `Cannot set width of Pixel VM screen larger than width of canvas ${this.state.screenHandle.width}`
@@ -990,7 +1022,7 @@ export class ParlVM {
   }
 
   public setHeight(height: number) {
-    if (!this.state.halted) throw Error('Cannot set height of Pixel VM screen while it is running.')
+    if (!this.halted) throw Error('Cannot set height of Pixel VM screen while it is running.')
     if (this.state.screenHandle.height < height)
       throw RangeError(
         `Cannot set height of Pixel VM screen larger than height of canvas ${this.state.screenHandle.height}`
@@ -1007,6 +1039,6 @@ export class ParlVM {
   }
 
   public isHalted(): boolean {
-    return this.state.halted
+    return this.halted
   }
 }

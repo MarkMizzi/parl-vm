@@ -17,7 +17,7 @@ const loggerRef = useTemplateRef('parl-vm-logger')
 
 // is the VM executing instructions rn?
 // No if machine has halted, not been started or is paused.
-const isRunning = ref(false)
+const isHalted = ref(true)
 // Has the machine been paused by the user?
 const isPaused = ref(false)
 
@@ -31,6 +31,13 @@ onMounted(() => {
   vm = new ParlVM(screenRef.value as HTMLCanvasElement, loggerRef.value as HTMLTextAreaElement)
   currScreenWidth.value = vm!.getWidth()
   currScreenHeight.value = vm!.getHeight()
+  /* Set callbacks to update isRunning and isPaused refs accordingly */
+  vm!.onPausedChange = (p) => {
+    isPaused.value = p
+  }
+  vm!.onHaltedChange = (h) => {
+    isHalted.value = h
+  }
 })
 
 function setNewWidth() {
@@ -86,7 +93,6 @@ function stop() {
 }
 
 function pause() {
-  isPaused.value = true
   vm?.pause()
 }
 
@@ -97,51 +103,20 @@ function step() {
 }
 
 function stepOut() {
-  // while VM is stepping out, execution is not paused.
-  isPaused.value = false
-  // if step out is pressed before running the program we need to set isRunning to true.
-  isRunning.value = true
-  vm
-    ?.stepOut()
-    .then(() => {
-      // after we have finished stepping out, we pause the VM again
-      // However if the VM has halted we do not pause it.
-      if (!vm?.isHalted()) isPaused.value = true
-    })
-    .catch((error) => {
-      // NOTE: If an error has been thrown, we don't need to worry about isPaused as machine has halted.
-      $toast.error(`${error}`)
-    })
-    .finally(() => {
-      isRunning.value = false
-    })
+  vm?.stepOut().catch((error) => {
+    $toast.error(`${error}`)
+  })
 }
 
 function runOrContinue() {
-  if (isRunning.value) {
-    $toast.error('VM is already running!')
-  }
-  isRunning.value = true
-
   if (isPaused.value) {
-    isPaused.value = false
-    vm
-      ?.continue()
-      .catch((error) => {
-        $toast.error(`${error}`)
-      })
-      .finally(() => {
-        isRunning.value = false
-      })
+    vm?.continue().catch((error) => {
+      $toast.error(`${error}`)
+    })
   } else {
-    vm
-      ?.run()
-      .catch((error) => {
-        $toast.error(`${error}`)
-      })
-      .finally(() => {
-        isRunning.value = false
-      })
+    vm?.run().catch((error) => {
+      $toast.error(`${error}`)
+    })
   }
 }
 
@@ -197,7 +172,11 @@ defineExpose({
         ></textarea>
       </div>
       <div class="flex flex-col gap-x-0">
-        <button v-if="!isRunning" class="h-8 w-8 p-2 link-green tooltip" @click="runOrContinue()">
+        <button
+          v-if="isHalted || isPaused"
+          class="h-8 w-8 p-2 link-green tooltip"
+          @click="runOrContinue()"
+        >
           <div class="tooltip-text">Run</div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -213,7 +192,7 @@ defineExpose({
             />
           </svg>
         </button>
-        <button v-if="!isRunning" class="h-8 w-8 p-2 link-green tooltip" @click="step()">
+        <button v-if="isHalted || isPaused" class="h-8 w-8 p-2 link-green tooltip" @click="step()">
           <div class="tooltip-text">Step</div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -229,7 +208,11 @@ defineExpose({
             />
           </svg>
         </button>
-        <button v-if="!isRunning" class="h-8 w-8 p-2 link-green tooltip" @click="stepOut()">
+        <button
+          v-if="isHalted || isPaused"
+          class="h-8 w-8 p-2 link-green tooltip"
+          @click="stepOut()"
+        >
           <div class="tooltip-text">Step Out</div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -245,7 +228,11 @@ defineExpose({
             />
           </svg>
         </button>
-        <button v-if="isRunning" class="h-8 w-8 p-2 link-green tooltip" @click="pause()">
+        <button
+          v-if="!isHalted && !isPaused"
+          class="h-8 w-8 p-2 link-green tooltip"
+          @click="pause()"
+        >
           <div class="tooltip-text">Pause</div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -262,7 +249,11 @@ defineExpose({
             />
           </svg>
         </button>
-        <button v-if="isRunning" class="h-8 w-8 p-2 link-green tooltip" @click="stop()">
+        <button
+          v-if="!isHalted && !isPaused"
+          class="h-8 w-8 p-2 link-green tooltip"
+          @click="stop()"
+        >
           <div class="tooltip-text">Halt</div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
