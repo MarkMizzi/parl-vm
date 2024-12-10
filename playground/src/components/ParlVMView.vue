@@ -1,27 +1,12 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef, defineExpose, ref, type Ref } from 'vue'
-import { type Program, Assembler, ParlVM, type ParlVMState } from 'parl-vm'
+import { type Program, Assembler, ParlVM } from 'parl-vm'
 import $toast from '@/toast'
 
 export interface ParlVMViewData {
   program: Program
   assembler: Assembler
   vm: ParlVM | undefined
-}
-
-class ParlVMWithDebugger extends ParlVM {
-  private stateRef: Ref<ParlVMState>
-  protected get state(): ParlVMState {
-    return this.stateRef.value
-  }
-  protected set state(v: ParlVMState) {
-    this.stateRef.value = v
-  }
-
-  constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
-    super(screenHandle, loggerHandle)
-    this.stateRef = ref(ParlVM.initState(screenHandle, loggerHandle))
-  }
 }
 
 let assembler = new Assembler()

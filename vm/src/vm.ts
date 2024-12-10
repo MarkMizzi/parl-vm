@@ -3,7 +3,7 @@ import { type Program } from './assembler'
 
 type Frame = Array<number | undefined>
 
-export interface ParlVMState {
+interface ParlVMState {
   screenHandle: HTMLCanvasElement
   loggerHandle: HTMLTextAreaElement
   frameStack: Array<Frame>
@@ -37,24 +37,17 @@ export class ParlVM {
   }
 
   protected program: Program
-
-  // While this may look like a weird way to represent state,
-  // it allows us to override getters and setters for this.state in subclasses.
-  private _state: ParlVMState
-  protected get state(): ParlVMState {
-    return this._state
-  }
-  protected set state(v: ParlVMState) {
-    this._state = v
-  }
+  protected state: ParlVMState
+  protected breakpoints: Set<number>
 
   constructor(screenHandle: HTMLCanvasElement, loggerHandle: HTMLTextAreaElement) {
-    this._state = ParlVM.initState(screenHandle, loggerHandle)
+    this.state = ParlVM.initState(screenHandle, loggerHandle)
     // initialize program to the program that does nothing and halts immediately.
     this.program = {
       instrs: [{ opcode: PixIROpcode.HALT, operand: undefined }],
       funcs: new Map([['.main', 0]])
     }
+    this.breakpoints = new Set()
   }
 
   /* Pop safely from the work stack. */
@@ -98,6 +91,36 @@ export class ParlVM {
     this.state.programCounter = 0
     this.state.paused = false
   }
+
+  /* Breakpoint interface */
+  /* -------------------- */
+
+  public setBreakpoint(pc: number): boolean {
+    if (this.breakpoints.has(pc)) {
+      return false
+    }
+    this.breakpoints.add(pc)
+    return true
+  }
+
+  public deleteBreakpoint(pc: number): boolean {
+    if (this.breakpoints.has(pc)) {
+      this.breakpoints.delete(pc)
+      return true
+    }
+    return false
+  }
+
+  public printBreakpoints(): string {
+    const breakpointsStrArr = []
+    for (let breakpoint of this.breakpoints) {
+      breakpointsStrArr.push(breakpoint.toString())
+    }
+    return breakpointsStrArr.join(', ')
+  }
+
+  /* Execution interface */
+  /* ------------------- */
 
   private async step() {
     if (this.state.halted) throw Error('Trying to execute step in halted VM.')
@@ -748,6 +771,9 @@ export class ParlVM {
           break
         }
       }
+
+      // if we've hit a breakpoint we should pause
+      if (this.breakpoints.has(this.state.programCounter)) this.state.paused = true
     } catch (e) {
       // any errors are fatal and halt the VM
       this.state.halted = true
