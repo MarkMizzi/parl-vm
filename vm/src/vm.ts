@@ -38,16 +38,21 @@ export class ParlVM {
 
   protected program: Program
   protected state: ParlVMState
+  // note that breakpoints are pc+1 values, since line numbers start from 1 and pc starts from 0.
   protected breakpoints: Set<number>
 
   private onHaltedChangeHandlers: ((h: boolean) => void)[] = []
   private onPausedChangeHandlers: ((p: boolean) => void)[] = []
+  private onBreakpointHandlers: ((breakpoint: number) => void)[] = []
 
   public set onHaltedChange(handler: (h: boolean) => void) {
     this.onHaltedChangeHandlers.push(handler)
   }
   public set onPausedChange(handler: (p: boolean) => void) {
     this.onPausedChangeHandlers.push(handler)
+  }
+  public set onBreakpoint(handler: (breakpoint: number) => void) {
+    this.onBreakpointHandlers.push(handler)
   }
 
   /* Wrappers for this.state.halted and this.state.paused */
@@ -128,6 +133,10 @@ export class ParlVM {
     this.paused = false
   }
 
+  public get programCounter() {
+    return this.state.programCounter
+  }
+
   /* Breakpoint interface */
   /* -------------------- */
 
@@ -158,7 +167,7 @@ export class ParlVM {
   /* State printing interface */
   /* ------------------------ */
 
-  public printState(query: string) {
+  public printState(query: string): string {
     // print program counter
     if (query === '#PC') {
       return this.state.programCounter.toString()
@@ -237,54 +246,62 @@ export class ParlVM {
         .split(':', 1)
         .map((x) => parseInt(x))
 
-      const data = this.state.frameStack[frame][offset]
-      if (data == undefined) {
-        throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
-      }
+      if (frame < 0 || frame >= this.state.frameStack.length)
+        throw RangeError(
+          `Tried accessing frame ${frame} that does not exist, valid range is [0, ${this.state.frameStack.length - 1}]`
+        )
 
-      return data.toString()
+      if (offset < 0 || offset >= this.state.frameStack[frame].length)
+        throw RangeError(
+          `Tried accessing memory location ${offset} in frame ${frame} that does not exist, valid range is [0, ${this.state.frameStack[frame].length - 1}]`
+        )
+
+      const data = this.state.frameStack[frame][offset]
+      return data?.toString() || 'nil'
     }
 
     // print one loc in the topmost frame in the frame stack.
     if (query.match(/^\[\d+\]$/)) {
       const offset = parseInt(query.substring(1, query.length - 1))
 
-      const data = this.state.frameStack[0][offset]
-      if (data == undefined) {
-        throw RangeError(`Memory access to undefined location [${offset}]`)
-      }
+      if (offset < 0 || offset >= this.state.frameStack[0].length)
+        throw RangeError(
+          `Tried accessing memory location ${offset} in frame 0 that does not exist, valid range is [0, ${this.state.frameStack[0].length - 1}]`
+        )
 
-      return data.toString()
+      const data = this.state.frameStack[0][offset]
+      return data?.toString() || 'nil'
     }
 
     // print one whole frame in the frame stack.
     if (query.match(/^\[:\d+\]$/)) {
       const frame = parseInt(query.substring(2, query.length - 1))
 
-      const data = this.state.frameStack[frame]
-      if (data == undefined) {
-        throw RangeError(`Tried accessing out of bounds frame [${frame}]`)
-      }
+      if (frame < 0 || frame >= this.state.frameStack.length)
+        throw RangeError(
+          `Tried accessing frame ${frame} that does not exist, valid range is [0, ${this.state.frameStack.length - 1}]`
+        )
 
-      return data.map((x) => x!.toString()).join(', ')
+      const data = this.state.frameStack[frame]
+      return data.map((x) => x?.toString() || 'nil').join(', ')
     }
 
     // print length of a frame in the frame stack.
     if (query.match(/^\[:\d+\]\.len$/)) {
       const frame = parseInt(query.substring(2, query.length - '].len'.length))
 
-      const data = this.state.frameStack[frame]
-      if (data == undefined) {
-        throw RangeError(`Tried accessing out of bounds frame [${frame}]`)
-      }
+      if (frame < 0 || frame >= this.state.frameStack.length)
+        throw RangeError(
+          `Tried accessing frame ${frame} that does not exist, valid range is [0, ${this.state.frameStack.length - 1}]`
+        )
 
-      return data.length.toString()
+      return this.state.frameStack[frame].length.toString()
     }
 
     // print entire frame stack.
     if (query.match(/^\[:\]$/)) {
       return this.state.frameStack
-        .map((x, i) => `Frame ${i}: ` + x.map((y) => y!.toString()).join(', '))
+        .map((x, i) => `Frame ${i}: ` + x.map((y) => y?.toString() || 'nil').join(', '))
         .join('\n')
     }
 
@@ -950,7 +967,12 @@ export class ParlVM {
       }
 
       // if we've hit a breakpoint we should pause
-      if (this.breakpoints.has(this.state.programCounter)) this.paused = true
+      if (this.breakpoints.has(this.state.programCounter + 1)) {
+        for (let handler of this.onBreakpointHandlers) {
+          handler(this.state.programCounter + 1)
+        }
+        this.paused = true
+      }
     } catch (e) {
       // any errors are fatal and halt the VM
       this.halted = true
