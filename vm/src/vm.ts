@@ -161,7 +161,7 @@ export class ParlVM {
     for (let breakpoint of this.breakpoints) {
       breakpointsStrArr.push(breakpoint.toString())
     }
-    return breakpointsStrArr.join(', ')
+    return 'There are breakpoints at ' + breakpointsStrArr.join(', ')
   }
 
   /* State printing interface */
@@ -170,15 +170,15 @@ export class ParlVM {
   public printState(query: string): string {
     // print program counter
     if (query === '#PC') {
-      return this.state.programCounter.toString()
+      return '#PC = ' + this.state.programCounter.toString()
     }
 
     if (query === 'workStack') {
-      return this.state.workStack.map((x) => x!.toString()).join(', ')
+      return 'workStack = {' + this.state.workStack.map((x) => x!.toString()).join(', ') + '}'
     }
 
     if (query === 'workStack.len') {
-      return this.state.workStack.length.toString()
+      return 'workStack.len = ' + this.state.workStack.length.toString()
     }
 
     if (query.match(/^workStack\[\d+\]$/)) {
@@ -188,7 +188,7 @@ export class ParlVM {
           `Out of bounds access to work stack ${offset}, access must be in range [0, ${this.state.workStack.length - 1}]`
         )
 
-      return this.state.workStack[offset].toString()
+      return `workStack[${offset}] = ` + this.state.workStack[offset].toString()
     }
 
     if (query.match(/^workStack\[\d*..\d*\]$/)) {
@@ -200,18 +200,22 @@ export class ParlVM {
           `Out of bounds access to range of work stack [${start},${end}], access must be in range [0, ${this.state.workStack.length - 1}]`
         )
 
-      return this.state.workStack
-        .slice(start, end)
-        .map((x) => x!.toString())
-        .join(', ')
+      return (
+        `workStack[${start}..${end}] = {` +
+        this.state.workStack
+          .slice(start, end)
+          .map((x) => x!.toString())
+          .join(', ') +
+        '}'
+      )
     }
 
     if (query === 'retStack') {
-      return this.state.retStack.map((x) => x!.toString()).join(', ')
+      return 'retStack = {' + this.state.retStack.map((x) => x!.toString()).join(', ') + '}'
     }
 
     if (query === 'retStack.len') {
-      return this.state.retStack.length.toString()
+      return 'retStack.len = ' + this.state.retStack.length.toString()
     }
 
     if (query.match(/^retStack\[\d+\]$/)) {
@@ -221,7 +225,7 @@ export class ParlVM {
           `Out of bounds access to return pointer stack ${offset}, access must be in range [0, ${this.state.retStack.length - 1}]`
         )
 
-      return this.state.retStack[offset].toString()
+      return `retStack[${offset}] = ` + this.state.retStack[offset].toString()
     }
 
     if (query.match(/^retStack\[\d*..\d*\]$/)) {
@@ -233,10 +237,14 @@ export class ParlVM {
           `Out of bounds access to range of return pointer stack [${start},${end}], access must be in range [0, ${this.state.retStack.length - 1}]`
         )
 
-      return this.state.retStack
-        .slice(start, end)
-        .map((x) => x!.toString())
-        .join(', ')
+      return (
+        `retStack[${start}..${end}] = {` +
+        this.state.retStack
+          .slice(start, end)
+          .map((x) => x!.toString())
+          .join(', ') +
+        '}'
+      )
     }
 
     // print one loc in the frame stack.
@@ -257,7 +265,7 @@ export class ParlVM {
         )
 
       const data = this.state.frameStack[frame][offset]
-      return data?.toString() || 'nil'
+      return `frameStack[${frame}][${offset}] = ` + data?.toString() || 'nil'
     }
 
     // print one loc in the topmost frame in the frame stack.
@@ -270,7 +278,7 @@ export class ParlVM {
         )
 
       const data = this.state.frameStack[0][offset]
-      return data?.toString() || 'nil'
+      return `frameStack[0][${offset}] = ` + data?.toString() || 'nil'
     }
 
     // print one whole frame in the frame stack.
@@ -283,7 +291,7 @@ export class ParlVM {
         )
 
       const data = this.state.frameStack[frame]
-      return data.map((x) => x?.toString() || 'nil').join(', ')
+      return `frameStack[${frame}] = {` + data.map((x) => x?.toString() || 'nil').join(', ') + '}'
     }
 
     // print length of a frame in the frame stack.
@@ -295,19 +303,23 @@ export class ParlVM {
           `Tried accessing frame ${frame} that does not exist, valid range is [0, ${this.state.frameStack.length - 1}]`
         )
 
-      return this.state.frameStack[frame].length.toString()
+      return `frameStack[${frame}].len = ` + this.state.frameStack[frame].length.toString()
     }
 
     // print entire frame stack.
     if (query.match(/^\[:\]$/)) {
-      return this.state.frameStack
-        .map((x, i) => `Frame ${i}: ` + x.map((y) => y?.toString() || 'nil').join(', '))
-        .join('\n')
+      return (
+        'frameStack = {\n' +
+        this.state.frameStack
+          .map((x, i) => `\tFrame ${i}: {` + x.map((y) => y?.toString() || 'nil').join(', ') + '}')
+          .join('\n') +
+        '\n}'
+      )
     }
 
     // print number of frames in frame stack
     if (query === '[:].len') {
-      return this.state.frameStack.length.toString()
+      return 'frameStack.len = ' + this.state.frameStack.length.toString()
     }
 
     throw SyntaxError(`Invalid query for printing state ${query}`)
