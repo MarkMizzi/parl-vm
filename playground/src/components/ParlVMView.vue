@@ -157,19 +157,21 @@ defineExpose({
             <button class="link-green" type="button" @click="setNewHeight()">update</button>
           </form>
         </div>
-        <canvas
-          ref="parl-vm-screen"
-          class="relative w-full overflow-auto border-2 content-center border-slate-900"
-          width="1000"
-          height="1000"
-        >
-        </canvas>
-        <textarea
-          ref="parl-vm-logger"
-          placeholder="Logs will be printed here..."
-          class="w-full h-96 overflow-y-scroll border-0 bg-slate-900 text-slate-100 resize-none"
-          readonly
-        ></textarea>
+        <div class="flex flex-col md:flex-row justify-start h-full gap-y-2 md:gap-y-0 md:gap-x-2">
+          <canvas
+            ref="parl-vm-screen"
+            class="relative w-full h-full overflow-auto border-2 content-center border-slate-900"
+            width="1000"
+            height="1000"
+          >
+          </canvas>
+          <textarea
+            ref="parl-vm-logger"
+            placeholder="Logs will be printed here..."
+            class="w-full md:w-80 h-full overflow-y-scroll border-0 bg-slate-900 text-slate-100 font-mono resize-none"
+            readonly
+          ></textarea>
+        </div>
       </div>
       <div class="flex flex-col gap-x-0">
         <button

@@ -1,6 +1,6 @@
 <template>
   <main>
-    <div class="w-full xl:w-4/6 mx-auto flex flex-col md:flex-row h-full">
+    <div class="w-full xl:w-5/6 mx-auto flex flex-col md:flex-row h-full">
       <div class="flex flex-row">
         <div class="w-full md:w-96 overflow-scroll">
           <AsmView ref="asmView"></AsmView>
