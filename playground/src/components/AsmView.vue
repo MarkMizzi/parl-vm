@@ -6,6 +6,7 @@
   >
     <option class="bg-slate-900 link-green" value="">choose an example...</option>
     <option class="bg-slate-900 link-green" value="random">random</option>
+    <option class="bg-slate-900 link-green" value="array max">array max</option>
   </select>
   <CodeEditor
     ref="assemblyEditor"
@@ -78,6 +79,91 @@ export default defineComponent({
   cframe       // close frame for loop
   cframe       // close frame main program
   halt         // exit the program`
+        ],
+        [
+          'array max',
+          `.main
+  push 4
+  jmp
+  halt
+  push 10     // make space for array
+  oframe
+  push #PC+52
+  jmp
+.MaxInArray   // start of MaxInArray function instructions
+  push 9      // number of local variables. 9 is over-allocating.
+  alloc       // create the space for variable m
+  push 0      // initial value of variable m
+  push 8      // location index in frame - following array
+  push 0      // frame level in memory stack
+  st          // store 0 to m
+  push 1      // for loop variables between ( ). Just i here.
+  oframe      // create a new scope and allocate space for i
+  push 0      // initial value of i
+  push 0      // index of i in the frame
+  push 0      // location of frame in memory stack
+  st          // store value 0 to i
+  push 8      // start of < evaluation. push RHS operand
+  push [0]    // push LHS operand
+  lt          // carry out operation
+  push #PC+4  // start of instructions implementing for block
+  cjmp        // if true jump
+  push #PC+29 // instruction location if condition is false
+  jmp         // go the exit of the for loop.
+  push 0      // no new local variables in the for block
+  oframe      // create a new frame for the for loop block
+  push [8:2]  // push value of m
+  push [0:1]  // push value of i
+  push +[0:2] // push value of x of f set by index i.
+  gt          // compare x[i] with m
+  push #PC+4  // push instruction line number if true
+  cjmp        // jump if this is true
+  push #PC+10 // push instruction line number if false
+  jmp         // jump
+  push 0      // if true, scope has no new local variables
+  oframe      // create the scope for the if true block
+  push [0:2]  // push value of i (note frame level is now 2)
+  push +[0:3] // push value of x at idx i (note frame level is 3)
+  push 8      // push location of m in frame
+  push 3      // push frame level where m is stored
+  st          // update value of m
+  cframe      // close frame (if true block)
+  cframe      // close frame (for loop)
+  push 1      // start of instructions for i=i+1; push 1
+  push [0]    // push value of i
+  add         // add i and 1
+  push 0      // location index in frame for variable i
+  push 0      // frame level in the memory stack
+  st          // assign the new value of i
+  push #PC-32 // push line number of bool expression of the for loop
+  jmp         // jump
+  cframe      // close function frame
+  push [8]    // push value of m
+  ret         // return from function
+  push 21     // push last array value
+  push 34     // push array value
+  push 120    // push array value
+  push 99     // push array value
+  push 65     // push array value
+  push 3      // push array value
+  push 54     // push array value
+  push 23     // push array value
+  push 8      // push size of array
+  push 1      // push index in frame where array starts
+  push 0      // push frame level on memory stack
+  sta         // pop all 8 array value s and store them
+  push 8      // prepare for call - push size of array
+  pusha [1]   // push array values starting at index 1
+  push 8      // 8 values are passed to MaxInArray function
+  push .MaxInArray // push line number of instruction starting function
+  call        // call function .. update program counter
+  push 9      // location index in frame for variable max
+  push 0      // location level in memory stack
+  st          // store value to max
+  push [9]    // push value of max
+  print       // print to the console
+  cframe      // close program frame
+  halt        // exit program`
         ]
       ])
     }
