@@ -63,10 +63,10 @@
     <h2>Function Calls and Returns</h2>
 
     <p>
-      Whenever a <span class="code">call</span> opcode is encountered, a function name is popped off
-      the work stack. The location of the start of the function is looked up in a table. The value
-      of the program counter+1 is pushed onto the return pointer stack, and then the program counter
-      is set to the start of the called function.
+      Whenever a <span class="code">call</span> opcode is encountered, a number is popped off the
+      work stack. The program location of the start of the called function is assumed to be this
+      number. The value of the program counter+1 is pushed onto the return pointer stack, and then
+      the program counter is set to the start of the called function.
     </p>
 
     <p>
@@ -92,21 +92,15 @@
 
     <h2>Data types</h2>
 
-    <p>Each item in the work or frame stack has one of the following two types:</p>
-    <ul>
-      <li>An IEEE754 floating point number.</li>
-      <li>
-        A reference to a function (encoded as a function label, e.g.
-        <span class="code">.main</span>)
-      </li>
-    </ul>
+    <p>
+      Each item in the work, frame or return pointer stacks is an IEEE754 floating point number. In
+      the case of values within frames, these may also be <span class="code">undefined</span>.
+    </p>
 
     <p>
-      Both the work stack and the frame stack are untyped, meaning any location within them can
-      contain a value of any type. Each opcode requires the items it pops from the work stack to
-      have a certain type -- other constraints may also need to be satisfied -- if one of these
-      expectations is violated, the VM will crash (throw an Error). The expected types (and
-      constraints) for each opcode are tabulated below.
+      When a new frame is allocated using <span class="code">oframe</span>, the locations within it
+      will be uninitialized, and will have a value of <span class="code">undefined</span>.
+      Attempting to load values from locations before initializing them will cause the VM to crash.
     </p>
 
     <p>
@@ -339,14 +333,20 @@
             One of just two opcodes that takes an argument. The argument is pushed onto the stack.
             Arguments can be:
             <ul>
-              <li>IEEE754 floating point numbers.</li>
+              <li>
+                IEEE754 floating point numbers in decimal or scientific notation. These are simply
+                pushed onto the stack.
+              </li>
               <li>
                 A colour (encoded as a hex string, e.g. <span class="code">#7f5612</span>). This is
-                converted into a floating point number before pushing it onto the work stack.
+                converted into an IEEE754 floating point number before pushing it onto the work
+                stack.
               </li>
               <li>
                 A reference to a function (encoded as a function label, e.g.
-                <span class="code">.main</span>)
+                <span class="code">.main</span>). The program location of the start of the function
+                will be looked up in a table, and the starting point found (which will be a number)
+                is pushed onto the work stack.
               </li>
               <li>
                 A PC relative offset (e.g. <span class="code">#PC+9</span>). When this is given as
@@ -416,12 +416,12 @@
           <td><span class="code">f n a1 .. an ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops a function label <span class="code">f</span> and a number
+            Pops a function start location <span class="code">f</span> and a number
             <span class="code">n</span> off the work stack. The VM then pops
             <span class="code">n</span> items off the work stack, creates a new frame containing
             them (preserving their order), and pushes it onto the frame stack. It then pushes the
             program counter+1 onto the return pointer stack and sets the value of the program
-            counter to the location of the start of <span class="code">f</span>.
+            counter to <span class="code">f</span>.
           </td>
         </tr>
         <tr>
@@ -486,10 +486,10 @@
           <td><span class="code">x y c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops three numbers <span class="code">x, y, c</span> and off the work stack and colours
-            the pixel on the screen at <span class="code">x, y</span> with
-            <span class="code">c</span>. <span class="code">c</span> must be a valid 8-bit color
-            depth RGB colour in the range <span class="code">[0, 0xffffff]</span>.
+            Pops three numbers <span class="code">x, y, c</span> off the work stack and colours the
+            pixel on the screen at <span class="code">x, y</span> with <span class="code">c</span>.
+            <span class="code">c</span> must be a valid 8-bit color depth RGB colour in the range
+            <span class="code">[0, 0xffffff]</span>.
           </td>
         </tr>
         <tr>
@@ -608,8 +608,9 @@
           <td><span class="code">c ..</span></td>
           <td><span class="code">..</span></td>
           <td>
-            Pops floating point number <span class="code">c</span>, rounds it to the nearest whole
-            number, and prints the character with that Unicode code point to the output log.
+            Pops floating point number <span class="code">c</span> off the work stack, rounds it to
+            the nearest whole number, and prints the character with that Unicode code point to the
+            output log.
           </td>
         </tr>
       </tbody>
