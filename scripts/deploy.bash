@@ -18,7 +18,7 @@ sudo docker build -t ${CONTAINER_NAME} .
 
 ### Start docker container
 
-sudo docker run -p 8080:8080 -d ${CONTAINER_NAME}
+sudo docker run -p 8090:8080 -d ${CONTAINER_NAME}
 
 ### Install NGINX configuration
 sudo cp nginx.conf /etc/nginx/sites-available/parl_playground.conf
