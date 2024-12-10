@@ -119,6 +119,7 @@ defineExpose({
 <template>
   <div class="w-full p-2 flex flex-row justify-start gap-x-2">
     <div class="md:h-[80vh] w-full flex flex-col gap-y-2">
+      <DebuggerConsole v-if="showDebugger" class="peer h-2/6 w-full" :vm="vm" />
       <div
         class="w-full flex flex-col md:flex-row justify-start md:h-12 gap-y-2 md:gap-y-0 md:gap-x-6"
       >
@@ -149,7 +150,6 @@ defineExpose({
           <button class="link-green" type="button" @click="setNewHeight()">update</button>
         </form>
       </div>
-      <DebuggerConsole v-if="showDebugger" class="peer h-2/6 w-full" :vm="vm" />
       <div
         class="flex flex-col md:flex-row w-full h-full peer-[]:h-4/6 justify-start gap-y-2 md:gap-y-0 md:gap-x-2"
       >

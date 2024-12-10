@@ -105,8 +105,32 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-y-2">
-    <div class="flex flex-row justify-start">
+  <div class="flex flex-row gap-x-2">
+    <div class="flex flex-col w-full">
+      <textarea
+        ref="parl-vm-debugger-console"
+        placeholder="Debugger console... Type help to see options"
+        class="w-full h-64 overflow-scroll text-nowrap border-0 bg-slate-900 text-slate-50 font-mono resize-none"
+        readonly
+      ></textarea>
+      <form
+        @submit="
+          (e) => {
+            e.preventDefault()
+            parseDebugCommand()
+            debugCommand = ''
+          }
+        "
+      >
+        <input
+          v-model="debugCommand"
+          type="text"
+          class="bg-slate-900 text-slate-50 my-2 w-full font-mono"
+          placeholder="Enter debug command..."
+        />
+      </form>
+    </div>
+    <div class="flex flex-col justify-start">
       <button v-if="isHalted || isPaused" class="h-8 w-8 p-2 link-green tooltip" @click="step()">
         <div class="tooltip-text">Step</div>
         <svg
@@ -140,27 +164,5 @@ onMounted(() => {
         </svg>
       </button>
     </div>
-    <textarea
-      ref="parl-vm-debugger-console"
-      placeholder="Debugger console... Type help to see options"
-      class="w-full h-64 overflow-scroll text-nowrap border-0 bg-slate-900 text-slate-50 font-mono resize-none"
-      readonly
-    ></textarea>
-    <form
-      @submit="
-        (e) => {
-          e.preventDefault()
-          parseDebugCommand()
-          debugCommand = ''
-        }
-      "
-    >
-      <input
-        v-model="debugCommand"
-        type="text"
-        class="bg-slate-900 text-slate-50 my-2 w-full font-mono"
-        placeholder="Enter debug command..."
-      />
-    </form>
   </div>
 </template>
