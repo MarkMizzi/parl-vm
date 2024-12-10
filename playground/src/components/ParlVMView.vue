@@ -117,9 +117,11 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex flex-row justify-start p-2 gap-x-2">
-    <div class="flex flex-col gap-y-2 md:h-[80vh]">
-      <div class="flex flex-col md:flex-row justify-start md:h-12 gap-y-2 md:gap-y-0 md:gap-x-6">
+  <div class="w-full p-2 flex flex-row justify-start gap-x-2">
+    <div class="md:h-[80vh] w-full flex flex-col gap-y-2">
+      <div
+        class="w-full flex flex-col md:flex-row justify-start md:h-12 gap-y-2 md:gap-y-0 md:gap-x-6"
+      >
         <p class="text-sm my-auto">
           <span class="italic">width x height: </span>
           {{ currScreenWidth }} x {{ currScreenHeight }}
@@ -147,10 +149,13 @@ defineExpose({
           <button class="link-green" type="button" @click="setNewHeight()">update</button>
         </form>
       </div>
-      <div class="flex flex-col md:flex-row h-full justify-start gap-y-2 md:gap-y-0 md:gap-x-2">
+      <DebuggerConsole v-if="showDebugger" class="peer h-2/6 w-full" :vm="vm" />
+      <div
+        class="flex flex-col md:flex-row w-full h-full peer-[]:h-4/6 justify-start gap-y-2 md:gap-y-0 md:gap-x-2"
+      >
         <canvas
           ref="parl-vm-screen"
-          class="relative w-full h-full overflow-auto border-2 content-center border-slate-900"
+          class="relative w-full max-h-full overflow-auto border-2 content-center border-slate-900"
           width="1000"
           height="1000"
         >
@@ -158,11 +163,10 @@ defineExpose({
         <textarea
           ref="parl-vm-logger"
           placeholder="Logs go here..."
-          class="w-full h-full md:w-80 overflow-y-scroll border-0 bg-slate-900 text-slate-100 font-mono resize-none"
+          class="w-full max-h-full md:w-80 overflow-y-scroll border-0 bg-slate-900 text-slate-100 font-mono resize-none"
           readonly
         ></textarea>
       </div>
-      <DebuggerConsole v-if="showDebugger" :vm="vm" />
     </div>
     <div class="flex flex-col gap-x-0">
       <button

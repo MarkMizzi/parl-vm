@@ -143,7 +143,7 @@ onMounted(() => {
     <textarea
       ref="parl-vm-debugger-console"
       placeholder="Debugger console... Type help to see options"
-      class="w-full h-80 overflow-scroll text-nowrap border-0 bg-slate-900 text-slate-50 font-mono resize-none"
+      class="w-full h-64 overflow-scroll text-nowrap border-0 bg-slate-900 text-slate-50 font-mono resize-none"
       readonly
     ></textarea>
     <form
