@@ -1,8 +1,7 @@
 import {
   type PixIRInstruction,
   PixIROpcode,
-  type PixIRData,
-  PixIRDataType,
+  PushOperandType,
   readInstr,
   validateFunctionName
 } from './instructions'
@@ -24,8 +23,11 @@ export class Assembler {
     // check that each function referenced in push instruction is within the program.
     for (const instr of program.instrs) {
       if (instr.opcode == PixIROpcode.PUSH) {
-        const operand = instr.operand as PixIRData
-        if (operand.dtype == PixIRDataType.FUNCTION && !program.funcs.has(operand.val as string)) {
+        const operand = instr.operand!
+        if (
+          operand.dtype == PushOperandType.FUNCTION &&
+          !program.funcs.has(operand.val as string)
+        ) {
           throw SyntaxError(`Function ${operand!.val} not found.`)
         }
       }

@@ -62,15 +62,12 @@ export enum PixIROpcode {
 }
 
 /* Data type enum used to tag VM data so that it can be type-checked at runtime. */
-export enum PixIRDataType {
-  NUMBER = 'number',
-  LABEL = 'label',
-  LABEL_W_OFFSET = 'label_w_offset',
-  // relative offset from PC.
-  PCOFFSET = 'pcoffset',
-  // function address
-  FUNCTION = 'function',
-  ARRAY = 'array'
+export enum PushOperandType {
+  NUMBER,
+  LABEL,
+  LABEL_W_OFFSET,
+  PCOFFSET,
+  FUNCTION
 }
 
 /* A Label is a location in VM memory, consisting of an [offset, frame] pair.
@@ -81,48 +78,14 @@ export type Label = [number, number]
 export type FunctionName = string
 
 /* Represents data type used by the VM (e.g. in work stack and frames). */
-export interface PixIRData {
-  dtype: PixIRDataType
-  val: number | boolean | Label | FunctionName | (PixIRData | undefined)[]
-}
-
-/* Convert Pixel VM data to a human-readable string */
-export function dataToString(d: PixIRData): string {
-  switch (d.dtype) {
-    case PixIRDataType.NUMBER:
-      return (d.val as number).toString()
-    case PixIRDataType.LABEL: {
-      const [offset, frame] = d.val as Label
-      return `[${offset}:${frame}]`
-    }
-    case PixIRDataType.LABEL_W_OFFSET: {
-      const [offset, frame] = d.val as Label
-      return `+[${offset}:${frame}]`
-    }
-    case PixIRDataType.PCOFFSET:
-      return `#PC+${d.val as number}`
-    case PixIRDataType.FUNCTION:
-      return d.val as FunctionName
-    case PixIRDataType.ARRAY:
-      return (
-        '[' +
-        (d.val as (PixIRData | undefined)[])
-          .map((x) => {
-            if (x !== undefined) {
-              return dataToString(x)
-            } else {
-              return 'undefined'
-            }
-          })
-          .join(',') +
-        ']'
-      )
-  }
+export interface PushOperand {
+  dtype: PushOperandType
+  val: number | Label | FunctionName
 }
 
 export interface PixIRInstruction {
   opcode: PixIROpcode
-  operand?: PixIRData
+  operand?: PushOperand
 }
 
 export function rgbToHex(rgb: number): string {
@@ -165,22 +128,16 @@ export function validateFunctionName(funcName: FunctionName) {
     throw SyntaxError(`Invalid function name ${funcName} found.`)
 }
 
-export function checkDataType(x: PixIRData, expectedTypes: Array<PixIRDataType>) {
-  if (expectedTypes.indexOf(x.dtype) == -1) {
-    throw TypeError(`Invalid operand type given, expected one of ${expectedTypes}, got ${x.dtype}.`)
-  }
-}
-
-function readOperand(opStr: string): PixIRData {
+function readOperand(opStr: string): PushOperand {
   // try checking if operand is a number
   const numValue = parseFloat(opStr)
-  if (!isNaN(numValue)) return { dtype: PixIRDataType.NUMBER, val: numValue }
+  if (!isNaN(numValue)) return { dtype: PushOperandType.NUMBER, val: numValue }
 
   // try checking if operand is a function name
   if (opStr[0] == '.') {
     // validate function name
     validateFunctionName(opStr)
-    return { dtype: PixIRDataType.FUNCTION, val: opStr }
+    return { dtype: PushOperandType.FUNCTION, val: opStr }
   }
   // try checking if operand is a label w/ offset
   if (opStr.substring(0, 2) == '+[' && opStr[opStr.length - 1] == ']') {
@@ -190,7 +147,7 @@ function readOperand(opStr: string): PixIRData {
     let frame = 0
     if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
     if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
-    return { dtype: PixIRDataType.LABEL_W_OFFSET, val: [offset, frame] }
+    return { dtype: PushOperandType.LABEL_W_OFFSET, val: [offset, frame] }
   }
 
   // try checking if operand is a label
@@ -201,14 +158,14 @@ function readOperand(opStr: string): PixIRData {
     let frame = 0
     if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
     if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
-    return { dtype: PixIRDataType.LABEL, val: [offset, frame] }
+    return { dtype: PushOperandType.LABEL, val: [offset, frame] }
   }
 
   // try checking if operand is a PC offset
   if (opStr.substring(0, 3) == '#PC') {
     const offset = parseInt(opStr.substring(3))
     if (isNaN(offset)) throw SyntaxError(`Invalid PC offset ${opStr} found.`)
-    return { dtype: PixIRDataType.PCOFFSET, val: offset }
+    return { dtype: PushOperandType.PCOFFSET, val: offset }
   }
 
   // try checking if operand is a Colour
@@ -218,8 +175,8 @@ function readOperand(opStr: string): PixIRData {
     // check that rest of string after # is a hex literal.
     isColor &&= !isNaN(parseInt(opStr.substring(1), 16))
   }
-  if (!isColor) throw SyntaxError(`Invalid operand ${opStr} found.`)
-  return { dtype: PixIRDataType.NUMBER, val: parseRGB(opStr) }
+  if (!isColor) throw SyntaxError(`Invalid push operand ${opStr} found.`)
+  return { dtype: PushOperandType.NUMBER, val: parseRGB(opStr) }
 }
 
 export function readInstr(line: string): PixIRInstruction {
@@ -231,7 +188,7 @@ export function readInstr(line: string): PixIRInstruction {
   const opcode = splitInstr[0] as PixIROpcode
 
   // get opcode operand if the opcode is a push instruction
-  let operand = undefined
+  let operand: PushOperand | undefined = undefined
   if (opcode === PixIROpcode.PUSH) {
     if (splitInstr.length == 1) throw SyntaxError('Operand for push instruction was not specified.')
     if (splitInstr.length != 2)
@@ -247,7 +204,7 @@ export function readInstr(line: string): PixIRInstruction {
       let frame = 0
       if (splitLabel.length > 1) frame = parseInt(splitLabel[1])
       if (isNaN(offset) || isNaN(frame)) throw SyntaxError(`Invalid label ${opStr} found.`)
-      operand = { dtype: PixIRDataType.LABEL, val: [offset, frame] } as PixIRData
+      operand = { dtype: PushOperandType.LABEL, val: [offset, frame] }
     } else {
       throw SyntaxError(
         `Invalid operand given to pusha instruction ${opStr}; operand should be memory location in form [offset:frame].`

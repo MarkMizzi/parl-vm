@@ -1,21 +1,13 @@
-import {
-  type PixIRData,
-  type Label,
-  PixIROpcode,
-  PixIRDataType,
-  checkDataType,
-  dataToString,
-  rgbToHex
-} from './instructions'
+import { type Label, PixIROpcode, PushOperandType, rgbToHex } from './instructions'
 import { type Program } from './assembler'
 
-type Frame = Array<PixIRData | undefined>
+type Frame = Array<number | undefined>
 
 export interface ParlVMState {
   screenHandle: HTMLCanvasElement
   loggerHandle: HTMLTextAreaElement
   frameStack: Array<Frame>
-  workStack: Array<PixIRData>
+  workStack: Array<number>
   programCounter: number
   // store return pointers
   retStack: Array<number>
@@ -66,7 +58,7 @@ export class ParlVM {
   }
 
   /* Pop safely from the work stack. */
-  private safePop(): PixIRData {
+  private safePop(): number {
     let x = this.state.workStack.pop()
     if (x === undefined) throw ReferenceError('Empty stack when operand is needed.')
     return x
@@ -131,13 +123,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) + (y.val as number)
-          })
+          this.state.workStack.push(x + y)
 
           // update pc
           this.state.programCounter++
@@ -148,13 +134,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) - (y.val as number)
-          })
+          this.state.workStack.push(x - y)
 
           // update pc
           this.state.programCounter++
@@ -165,12 +145,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) * (y.val as number)
-          })
+          this.state.workStack.push(x * y)
 
           // update pc
           this.state.programCounter++
@@ -181,13 +156,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) / (y.val as number)
-          })
+          this.state.workStack.push(x / y)
 
           // update pc
           this.state.programCounter++
@@ -198,13 +167,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) % (y.val as number)
-          })
+          this.state.workStack.push(x % y)
 
           // update pc
           this.state.programCounter++
@@ -214,12 +177,7 @@ export class ParlVM {
         case PixIROpcode.INC: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) + 1
-          })
+          this.state.workStack.push(x + 1)
 
           // update pc
           this.state.programCounter++
@@ -229,12 +187,7 @@ export class ParlVM {
         case PixIROpcode.DEC: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (x.val as number) - 1
-          })
+          this.state.workStack.push(x - 1)
 
           // update pc
           this.state.programCounter++
@@ -246,13 +199,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: Math.max(x.val as number, y.val as number)
-          })
+          this.state.workStack.push(Math.max(x, y))
 
           // update pc
           this.state.programCounter++
@@ -264,13 +211,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: Math.min(x.val as number, y.val as number)
-          })
+          this.state.workStack.push(Math.min(x, y))
 
           // update pc
           this.state.programCounter++
@@ -280,12 +221,7 @@ export class ParlVM {
         case PixIROpcode.ROUND: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: Math.round(x.val as number)
-          })
+          this.state.workStack.push(Math.round(x))
 
           // update pc
           this.state.programCounter++
@@ -296,16 +232,11 @@ export class ParlVM {
         case PixIROpcode.IRND: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          if ((x.val as number) <= 0) {
-            throw RangeError(`Argument to irnd instruction is ${dataToString(x)} <= 0, must be > 0`)
+          if (x <= 0) {
+            throw RangeError(`Argument to irnd instruction is ${x} <= 0, must be > 0`)
           }
 
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: Math.round(Math.random() * ((x.val as number) - 1))
-          })
+          this.state.workStack.push(Math.round(Math.random() * (x - 1)))
 
           // update pc
           this.state.programCounter++
@@ -318,12 +249,7 @@ export class ParlVM {
         case PixIROpcode.NOT: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: 1 - ((x.val as number) > 0 ? 1 : 0)
-          })
+          this.state.workStack.push(1 - (x > 0 ? 1 : 0))
 
           // update pc
           this.state.programCounter++
@@ -334,13 +260,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val < y.val ? 1 : 0
-          })
+          this.state.workStack.push(x < y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -351,13 +271,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val <= y.val ? 1 : 0
-          })
+          this.state.workStack.push(x <= y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -368,12 +282,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [y.dtype])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val == y.val ? 1 : 0
-          })
+          this.state.workStack.push(x == y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -384,12 +293,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [y.dtype])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val != y.val ? 1 : 0
-          })
+          this.state.workStack.push(x != y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -400,13 +304,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val > y.val ? 1 : 0
-          })
+          this.state.workStack.push(x > y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -417,13 +315,7 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: x.val >= y.val ? 1 : 0
-          })
+          this.state.workStack.push(x >= y ? 1 : 0)
 
           // update pc
           this.state.programCounter++
@@ -453,35 +345,36 @@ export class ParlVM {
         }
 
         case PixIROpcode.PUSH: {
-          if (instr.operand?.dtype == PixIRDataType.LABEL) {
+          if (instr.operand?.dtype == PushOperandType.LABEL) {
             const [offset, frame] = instr.operand?.val as Label
             const data = this.state.frameStack[frame][offset]
             if (data == undefined) {
               throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
             }
             this.state.workStack.push(data)
-          } else if (instr.operand?.dtype == PixIRDataType.LABEL_W_OFFSET) {
+          } else if (instr.operand?.dtype == PushOperandType.LABEL_W_OFFSET) {
             let [offset, frame] = instr.operand?.val as Label
             const index = this.safePop()
 
-            checkDataType(index, [PixIRDataType.NUMBER])
-
             // add index we obtained from the work stack.
-            offset += index.val as number
+            offset += index
             const data = this.state.frameStack[frame][offset]
             if (data == undefined) {
               throw RangeError(`Memory access to undefined location [${offset}:${frame}]`)
             }
             this.state.workStack.push(data)
-          } else if (instr.operand?.dtype == PixIRDataType.PCOFFSET) {
+          } else if (instr.operand?.dtype == PushOperandType.PCOFFSET) {
             const pcoffset = instr.operand?.val as number
             // push ptr to instruction to work stack, as when we use the pc offset, pc will have changed.
-            this.state.workStack.push({
-              dtype: PixIRDataType.NUMBER,
-              val: pc + pcoffset
-            })
+            this.state.workStack.push(pc + pcoffset)
+          } else if (instr.operand?.dtype == PushOperandType.FUNCTION) {
+            const funcName = instr.operand!.val as string
+            if (!this.program.funcs.has(funcName)) {
+              throw Error(`Function ${funcName} that does not exist.`)
+            }
+            this.state.workStack.push(this.program.funcs.get(funcName)!)
           } else {
-            this.state.workStack.push(instr.operand as PixIRData)
+            this.state.workStack.push(instr.operand!.val as number)
           }
 
           // update pc
@@ -498,8 +391,7 @@ export class ParlVM {
         case PixIROpcode.JMP: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          this.state.programCounter = x.val as number
+          this.state.programCounter = x
           break
         }
 
@@ -507,11 +399,8 @@ export class ParlVM {
           const instrptr = this.safePop()
           const cond = this.safePop()
 
-          checkDataType(instrptr, [PixIRDataType.NUMBER])
-          checkDataType(cond, [PixIRDataType.NUMBER])
-
           // update pc
-          if ((cond.val as number) != 0) this.state.programCounter = instrptr.val as number
+          if (cond != 0) this.state.programCounter = instrptr
           else this.state.programCounter++
           break
         }
@@ -520,32 +409,23 @@ export class ParlVM {
           const instrptr = this.safePop()
           const cond = this.safePop()
 
-          checkDataType(instrptr, [PixIRDataType.NUMBER])
-          checkDataType(cond, [PixIRDataType.NUMBER])
-
           // update pc
-          if ((cond.val as number) == 0) this.state.programCounter = instrptr.val as number
+          if (cond == 0) this.state.programCounter = instrptr
           else this.state.programCounter++
           break
         }
 
         case PixIROpcode.CALL: {
-          const funcName = this.safePop()
+          const funcLoc = this.safePop()
           const argCount = this.safePop()
 
-          checkDataType(funcName, [PixIRDataType.FUNCTION])
-          checkDataType(argCount, [PixIRDataType.NUMBER])
-
           let frame: Frame = []
-          for (let i = 0; i < (argCount.val as number); i++) frame.push(this.safePop())
+          for (let i = 0; i < (argCount as number); i++) frame.push(this.safePop())
 
           this.state.frameStack.unshift(frame)
           this.state.retStack.push(this.state.programCounter + 1)
 
-          if (!this.program.funcs.has(funcName.val as string))
-            throw Error(`Tried calling function ${funcName} which does not exist.`)
-
-          this.state.programCounter = this.program.funcs.get(funcName.val as string)!
+          this.state.programCounter = funcLoc
           break
         }
 
@@ -565,9 +445,7 @@ export class ParlVM {
         case PixIROpcode.ALLOC: {
           const size = this.safePop()
 
-          checkDataType(size, [PixIRDataType.NUMBER])
-
-          for (let i = 0; i < (size.val as number); i++) this.state.frameStack[0].push(undefined)
+          for (let i = 0; i < size; i++) this.state.frameStack[0].push(undefined)
 
           this.state.programCounter++
           break
@@ -576,10 +454,8 @@ export class ParlVM {
         case PixIROpcode.OFRAME: {
           const size = this.safePop()
 
-          checkDataType(size, [PixIRDataType.NUMBER])
-
           let frame: Frame = []
-          for (let i = 0; i < (size.val as number); i++) frame.push(undefined)
+          for (let i = 0; i < size; i++) frame.push(undefined)
 
           this.state.frameStack.unshift(frame)
 
@@ -595,15 +471,9 @@ export class ParlVM {
         }
 
         case PixIROpcode.ST: {
-          const frame_ = this.safePop()
-          const location_ = this.safePop()
+          const frame = this.safePop()
+          const location = this.safePop()
           const val = this.safePop()
-
-          checkDataType(location_, [PixIRDataType.NUMBER])
-          checkDataType(frame_, [PixIRDataType.NUMBER])
-
-          const frame = frame_.val as number
-          const location = location_.val as number
 
           if (frame >= this.state.frameStack.length || frame < 0)
             throw RangeError(
@@ -629,9 +499,7 @@ export class ParlVM {
 
           const delay = this.safePop()
 
-          checkDataType(delay, [PixIRDataType.NUMBER])
-
-          await sleep(delay.val as number)
+          await sleep(delay)
 
           this.state.programCounter++
           break
@@ -645,11 +513,7 @@ export class ParlVM {
           const y = this.safePop()
           const c = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-          checkDataType(c, [PixIRDataType.NUMBER])
-
-          this.fillRect(x.val as number, y.val as number, 1, 1, c.val as number)
+          this.fillRect(x, y, 1, 1, c)
 
           this.state.programCounter++
           break
@@ -662,19 +526,7 @@ export class ParlVM {
           const h = this.safePop()
           const c = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-          checkDataType(w, [PixIRDataType.NUMBER])
-          checkDataType(h, [PixIRDataType.NUMBER])
-          checkDataType(c, [PixIRDataType.NUMBER])
-
-          this.fillRect(
-            x.val as number,
-            y.val as number,
-            w.val as number,
-            h.val as number,
-            c.val as number
-          )
+          this.fillRect(x, y, w, h, c)
 
           this.state.programCounter++
           break
@@ -683,9 +535,7 @@ export class ParlVM {
         case PixIROpcode.CLEAR: {
           const c = this.safePop()
 
-          checkDataType(c, [PixIRDataType.NUMBER])
-
-          this.fillRect(0, 0, this.state.width, this.state.height, c.val as number)
+          this.fillRect(0, 0, this.state.width, this.state.height, c)
 
           this.state.programCounter++
           break
@@ -695,14 +545,8 @@ export class ParlVM {
           const x = this.safePop()
           const y = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-          checkDataType(y, [PixIRDataType.NUMBER])
-
-          let [canvasX, canvasY] = this.scaleCanvas(x.val as number, y.val as number)
-          const [canvasX_, canvasY_] = this.scaleCanvas(
-            (x.val as number) + 1,
-            (y.val as number) + 1
-          )
+          let [canvasX, canvasY] = this.scaleCanvas(x, y)
+          const [canvasX_, canvasY_] = this.scaleCanvas(x + 1, y + 1)
           // find center of canvas rectangle representing pixel (x, y) of PixelVM screen,
           // this ensures we read from the right region of the canvas despite any floating point rounding errors.
           canvasX = (canvasX + canvasX_) / 2
@@ -710,30 +554,21 @@ export class ParlVM {
 
           const context = this.state.screenHandle.getContext('2d')
           const imageData = context!.getImageData(canvasX, canvasY, 1, 1).data
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: (imageData[0] << 16) | (imageData[1] << 8) | imageData[2]
-          })
+          this.state.workStack.push((imageData[0] << 16) | (imageData[1] << 8) | imageData[2])
 
           this.state.programCounter++
           break
         }
 
         case PixIROpcode.WIDTH: {
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: this.state.width
-          })
+          this.state.workStack.push(this.state.width)
 
           this.state.programCounter++
           break
         }
 
         case PixIROpcode.HEIGHT: {
-          this.state.workStack.push({
-            dtype: PixIRDataType.NUMBER,
-            val: this.state.height
-          })
+          this.state.workStack.push(this.state.height)
 
           this.state.programCounter++
           break
@@ -742,7 +577,7 @@ export class ParlVM {
         // log output
         case PixIROpcode.PRINT: {
           const x = this.safePop()
-          this.state.loggerHandle.value += `${dataToString(x)}\n`
+          this.state.loggerHandle.value += `${x}\n`
 
           this.state.programCounter++
           break
@@ -755,9 +590,7 @@ export class ParlVM {
           const x = this.safePop()
           const count = this.safePop()
 
-          checkDataType(count, [PixIRDataType.NUMBER])
-
-          for (let i: number = 0; i < (count.val as number); i++) {
+          for (let i: number = 0; i < count; i++) {
             this.state.workStack.push(x)
           }
 
@@ -766,17 +599,9 @@ export class ParlVM {
         }
 
         case PixIROpcode.STA: {
-          const frame_ = this.safePop()
-          const location_ = this.safePop()
-          const count_ = this.safePop()
-
-          checkDataType(frame_, [PixIRDataType.NUMBER])
-          checkDataType(location_, [PixIRDataType.NUMBER])
-          checkDataType(count_, [PixIRDataType.NUMBER])
-
-          const frame = frame_.val as number
-          const location = location_.val as number
-          const count = count_.val as number
+          const frame = this.safePop()
+          const location = this.safePop()
+          const count = this.safePop()
 
           if (frame >= this.state.frameStack.length || frame < 0)
             throw RangeError(
@@ -796,13 +621,9 @@ export class ParlVM {
         }
 
         case PixIROpcode.PUSHA: {
-          const count_ = this.safePop()
+          const count = this.safePop()
 
-          checkDataType(count_, [PixIRDataType.NUMBER])
-
-          const count = count_.val as number
-
-          if (instr.operand?.dtype == PixIRDataType.LABEL) {
+          if (instr.operand?.dtype == PushOperandType.LABEL) {
             const [location, frame] = instr.operand?.val as Label
 
             if (frame >= this.state.frameStack.length || frame < 0)
@@ -829,14 +650,10 @@ export class ParlVM {
         }
 
         case PixIROpcode.PRINTA: {
-          const count_ = this.safePop()
-
-          checkDataType(count_, [PixIRDataType.NUMBER])
-
-          const count = count_.val as number
+          const count = this.safePop()
 
           for (let i: number = 0; i < count; i++) {
-            this.state.loggerHandle.value += `${dataToString(this.safePop())}\n`
+            this.state.loggerHandle.value += `${this.safePop()}\n`
           }
 
           this.state.programCounter++
@@ -844,13 +661,9 @@ export class ParlVM {
         }
 
         case PixIROpcode.RETA: {
-          const count_ = this.safePop()
+          const count = this.safePop()
 
-          checkDataType(count_, [PixIRDataType.NUMBER])
-
-          const count = count_.val as number
-
-          let buf: PixIRData[] = []
+          let buf: number[] = []
           for (let i: number = 0; i < count; i++) {
             buf.push(this.safePop())
           }
@@ -919,7 +732,7 @@ export class ParlVM {
             }
           }
 
-          this.state.workStack.push({ dtype: PixIRDataType.NUMBER, val })
+          this.state.workStack.push(val)
 
           this.state.programCounter++
           break
@@ -928,9 +741,7 @@ export class ParlVM {
         case PixIROpcode.PUTCHAR: {
           const x = this.safePop()
 
-          checkDataType(x, [PixIRDataType.NUMBER])
-
-          const charCode = Math.round(x.val as number)
+          const charCode = Math.round(x)
           this.state.loggerHandle.value += `${String.fromCharCode(charCode)}`
 
           this.state.programCounter++
