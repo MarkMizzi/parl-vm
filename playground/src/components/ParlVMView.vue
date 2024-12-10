@@ -185,8 +185,8 @@ defineExpose({
         <canvas
           ref="parl-vm-screen"
           class="relative w-full overflow-auto border-2 content-center border-slate-900"
-          width="800"
-          height="800"
+          width="1000"
+          height="1000"
         >
         </canvas>
         <textarea
