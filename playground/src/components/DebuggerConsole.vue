@@ -107,11 +107,11 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-row gap-x-2">
-    <div class="flex flex-col w-full">
+    <div class="flex flex-col w-full gap-x-0">
       <textarea
         ref="parl-vm-debugger-console"
         placeholder="Debugger console... Type help to see options"
-        class="w-full h-64 overflow-scroll text-nowrap border-0 bg-slate-900 text-slate-50 font-mono resize-none"
+        class="w-full h-64 overflow-auto text-nowrap text-xs border-0 bg-slate-900 text-slate-50 font-mono resize-none"
         readonly
       ></textarea>
       <form
@@ -126,7 +126,7 @@ onMounted(() => {
         <input
           v-model="debugCommand"
           type="text"
-          class="bg-slate-900 text-slate-50 my-2 w-full font-mono"
+          class="bg-slate-900 text-slate-50 text-xs my-2 w-full font-mono"
           placeholder="Enter debug command..."
         />
       </form>
